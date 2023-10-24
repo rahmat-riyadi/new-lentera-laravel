@@ -5,7 +5,13 @@
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <title>{{ $title ?? 'Page Title' }}</title>
         @include('partials.fontface')
-        @stack('style')
+        <style>
+
+            .wrapper {
+                box-shadow: 0px 0px 12px 0px rgba(123, 123, 123, 0.10), 0px 2px 4px 0px rgba(16, 24, 40, 0.10);
+            }
+        
+        </style>
         @vite('resources/css/app.css')
     </head>
     <body>

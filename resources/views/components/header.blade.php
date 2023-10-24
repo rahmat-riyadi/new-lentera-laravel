@@ -3,7 +3,8 @@
 use Function Livewire\Volt\{state};
 
 state([
-    'show_notif' => false
+    'show_notif' => false,
+    'show_account' => false
 ]);
 
 ?>
@@ -27,7 +28,7 @@ state([
                 class="w-[18px] h-[18px]"
             />
         </button>
-        <button class="flex items-center cursor-pointer" >
+        <button wire:click="$toggle('show_account')" class="flex items-center cursor-pointer" >
             <img src="{{ asset('assets/images/avatar.jpg') }}" class="w-[42px] h-[42px] rounded-full object-cover mr-3" alt="">
             <span class="hidden md:inline text-sm font-medium mr-4 capitalize" >{{ auth()->user()->firstname . " " . auth()->user()->lastname }}</span>
             <x-icons.arrow-down
@@ -36,5 +37,6 @@ state([
         </button>
     </div>
     {{-- <x-notification-bar :show="$show_notif" /> --}}
+    <x-account-popup :show="$show_account" />
 </div>
 @endvolt

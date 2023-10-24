@@ -23,8 +23,7 @@ $submit = function (){
     $this->validate();
     
     if(Auth::attempt(['username' => $this->username, 'password' => $this->password])){
-        Log::debug('success');
-        return;
+        return $this->redirect('/');
     } 
     
     $this->invalidate = true;

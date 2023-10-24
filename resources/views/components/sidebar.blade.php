@@ -20,8 +20,6 @@ mount(function() {
 
   $this->courses = $course;
 
-  Log::debug($this->courses);
-
 });
 
 ?>
@@ -84,7 +82,7 @@ mount(function() {
     >
       <div class="transition-all absolute w-full">
         @foreach ($courses as $item)
-        <a href="/course/{i.id}" class="flex items-center w-full py-3 pl-6 rounded-xl transition-all mb-1 pr-2 group">
+        <a wire:navigate href="/course/{{ $item->shortname }}" class="flex items-center w-full py-3 pl-6 rounded-xl transition-all mb-1 pr-2 group">
           <x-icons.dot
             class="{{ Route::currentRouteName() == 'course' ? 'fill-primary-dark' : 'fill-grey-600' }} group-hover:fill-primary-dark"
           />

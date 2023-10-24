@@ -11,4 +11,8 @@ class Course extends Model
 
     protected $table = 'mdl_course';
 
+    public function section(){
+        return $this->hasMany(CourseSection::class, 'course');
+    }
+
 }
