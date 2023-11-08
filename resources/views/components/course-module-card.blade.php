@@ -6,14 +6,14 @@
     'show'
 ])
 
-<a href="{{ $link }}" class="flex border hover:bg-grey-100 items-center border-grey-300 p-5 rounded-xl mt-5" >
+<a href="{{ $link }}" class="flex border hover:bg-grey-100 items-center border-grey-300 p-5 rounded-xl mt-5 relative" >
     <img src="{{ $icon }}" class="mr-3 w-10" alt="">
     <div>
         <p class="text-sm font-semibold mb-1" >{{ $title }}</p>
         <p class="text-xs" >{!! $description !!}</p>
     </div>
     <div class="relative ml-auto">
-        <button class="w-8 h-8 ml-auto" >
+        <button {{ $attributes }} class="w-8 h-8 ml-auto" >
             <x-icons.more-svg class="fill-primary" />
         </button>
         @if ($show ?? false)

@@ -12,6 +12,7 @@
             }
         
         </style>
+        <script src="https://cdn.tiny.cloud/1/mfwsl4xdczczqoigmfie0vd3tce8jna9eg7g5sq74qglzaz4/tinymce/6/tinymce.min.js" referrerpolicy="origin"></script>
         @vite('resources/css/app.css')
     </head>
     <body>
@@ -24,5 +25,11 @@
                 </div>
             </div>
         </div>
+
+
+        {{-- <script src="https://cdn.tiny.cloud/1/mfwsl4xdczczqoigmfie0vd3tce8jna9eg7g5sq74qglzaz4/tinymce/5/tinymce.min.js" referrerpolicy="origin"></script> --}}
+        {{-- <script src="https://cdn.tiny.cloud/1/mfwsl4xdczczqoigmfie0vd3tce8jna9eg7g5sq74qglzaz4/tinymce/6/tinymce.min.js" referrerpolicy="origin"></script> --}}
+        
+        @stack('script')
     </body>
 </html>

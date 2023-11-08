@@ -5,18 +5,14 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
-class CourseModule extends Model
+class AssignPluginConfig extends Model
 {
     use HasFactory;
 
     protected $guarded = ['id'];
 
-    protected $table = 'mdl_course_modules';
+    protected $table = 'mdl_assign_plugin_config';
 
     public $timestamps = false;
-
-    public function module(){
-        return $this->belongsTo(Module::class, 'module');
-    }
 
 }

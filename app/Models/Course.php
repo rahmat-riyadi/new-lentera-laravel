@@ -11,8 +11,20 @@ class Course extends Model
 
     protected $table = 'mdl_course';
 
+    protected $guarded = ['id'];
+
+    public $timestamps = false;
+
     public function section(){
         return $this->hasMany(CourseSection::class, 'course');
+    }
+
+    public function url(){
+        return $this->hasMany(Url::class, 'course');
+    }
+
+    public function assignment(){
+        return $this->hasMany(Assign::class, 'course');
     }
 
 }

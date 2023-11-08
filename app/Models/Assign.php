@@ -9,5 +9,14 @@ class Assign extends Model
 {
     use HasFactory;
 
+    protected $guarded = ['id'];
+
     protected $table = 'mdl_assign';
+
+    public $timestamps = false;
+
+    public function assignPluginConfig(){
+        return $this->hasMany(AssignPluginConfig::class, 'assignment');
+    }
+
 }

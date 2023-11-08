@@ -9,7 +9,7 @@
     {{ $attributes }}
     class="
         {{ $class }}
-        btn-primary
+        btn-outlined
         flex 
         justify-center 
         items-center

@@ -1,0 +1,153 @@
+<?php
+
+namespace App\Livewire\Forms\Activity;
+
+use App\Http\Controllers\CourseModuleController;
+use App\Models\Course;
+use App\Models\Module;
+use Livewire\Attributes\Rule;
+use Livewire\Form;
+
+class AssignForm extends Form
+{
+
+    public function __construct() {
+        $this->module = Module::where('name', 'assign')->first();
+    }
+
+    public Module $module;
+    
+    public ?Course $course;
+
+    public $section_num;
+
+    #[Rule('required')]
+    public $name;
+
+    #[Rule('required')]
+    public $intro;
+
+    #[Rule('required')]
+    public $duedate;
+
+    #[Rule('required')]
+    public $allowsubmissionsfromdate;
+
+    #[Rule('required')]
+    public $submissiontype;
+    
+    #[Rule('nullable')]
+    public $wordlimit;
+
+    #[Rule('nullable')]
+    public $maxfilesubmissions;
+
+    #[Rule('nullable')]
+    public $max_file_size;
+
+    #[Rule('nullable')]
+    public $file_types;
+
+    public function setModel(Course $course){
+        $this->course = $course;
+    }
+
+    public function setSection($section_num){
+        $this->section_num = $section_num;
+    }
+
+    public function store(){
+
+        $instance = $this->course->assignment()->create([
+            'name' => $this->name,
+            'intro' => $this->intro,
+            'introformat' => 1,
+            'alwaysshowdescription' => 1,
+            'markingallocation' => 0,
+            'submissiondrafts' => 0,
+            'requiresubmissionstatement' => 0,
+            'sendlatenotifications' => 1,
+            'sendstudentnotifications' => 1,
+            'cutoffdate' => 0,
+            'gradingduedate' => 0,
+            'grade' => 100,
+            'completionsubmit' => 100,
+            'requireallteammemberssubmit' => 100,
+            'blindmarking' => 100,
+            'markingworkflow' => 100,
+            'duedate' => strtotime($this->duedate),
+            'timemodified' => time()
+        ]);
+
+        if($this->submissiontype == 'onlinetext'){
+            $instance->assignPluginConfig()->create([
+                'plugin' => 'onlinetext',
+                'subtype' => 'assignsubmission',
+                'name' => 'enabled',
+                'value' => 1,
+            ]);
+
+            $instance->assignPluginConfig()->create([
+                'plugin' => 'onlinetext',
+                'subtype' => 'assignsubmission',
+                'name' => 'wordlimitenabled',
+                'value' => !is_null($this->wordlimit),
+            ]);
+
+            $instance->assignPluginConfig()->create([
+                'plugin' => 'onlinetext',
+                'subtype' => 'assignsubmission',
+                'name' => 'wordlimit',
+                'value' => $this->wordlimit ?? 0 ,
+            ]);
+
+        } else {
+
+            $instance->assignPluginConfig()->create([
+                'plugin' => 'file',
+                'subtype' => 'assignsubmission',
+                'name' => 'enabled',
+                'value' => 1,
+            ]);
+
+            $instance->assignPluginConfig()->create([
+                'plugin' => 'file',
+                'subtype' => 'assignsubmission',
+                'name' => 'maxfilesubmission',
+                'value' => $this->maxfilesubmissions ?? 1,
+            ]);
+
+            $instance->assignPluginConfig()->create([
+                'plugin' => 'file',
+                'subtype' => 'assignsubmission',
+                'name' => 'maxsubmissionsizebytes',
+                'value' => $this->max_file_size ?? 1048576,
+            ]);
+
+            $instance->assignPluginConfig()->create([
+                'plugin' => 'file',
+                'subtype' => 'assignsubmission',
+                'name' => 'filetypeslist',
+                'value' => $this->file_types ?? '*',
+            ]);
+
+        }
+
+
+        $cm = CourseModuleController::addCourseModule([
+            'course' => $this->course->id,
+            'module' => $this->module->id,
+            'instance' => $instance->id,
+            'showdescription' => '1',
+            'added' => time()
+        ]);
+
+        CourseModuleController::addCourseModuleToSection(
+            $this->course->id,
+            $cm->id,
+            $this->section_num
+        );
+
+    }
+
+}
