@@ -44,7 +44,7 @@ $fetch_content = function (){
         'moodlewsrestformat' => 'json',
         'courseid' => $this->course->id
     ]);
-    // Log::debug($response->json());
+    Log::debug($response->json());
     $this->sections = $response->json();
 };
 
@@ -238,23 +238,32 @@ $handle_delete_module = function ($id){
                     switch ($module['modname']) {
                         case 'quiz':
                             $icon = asset('assets/icons/kuis.svg');
+                            $detail_url = "";
                             break;
                         case 'url':
                             $icon = asset('assets/icons/url.svg');
+                            $detail_url = "";
                             break;
                         case 'assign':
                             $icon = asset('assets/icons/penugasan.svg');
+                            $detail_url = "/course/{$course->shortname}/activity/assignment/detail/{$module['id']}";
                             break;
                         case 'resource':
                             $icon = asset('assets/icons/berkas_md.svg');
+                            $detail_url = "";
                             break;
                     }
                 @endphp
-                <a href="javascript:;" class="flex border hover:bg-grey-100 items-center border-grey-300 p-5 rounded-xl mt-5" >
+                <div class="flex border hover:bg-grey-100 items-center border-grey-300 p-5 rounded-xl mt-5" >
                     <img src="{{ $icon }}" class="mr-3 w-10" alt="">
                     <div>
-                        <p class="text-sm font-semibold mb-1" >{{ $module['name'] }}</p>
-                        <p class="text-xs" >{!! $module['description'] !!}</p>
+                        <a wire:navigate href="{{ $detail_url }}" class="text-sm font-semibold mb-1" >
+                            {{ $module['name'] }}
+                        </a>
+                        <div class="text-sm" >
+                            {!! $module['description'] !!}
+                            {{-- <p class="text-lg" ></p> --}}
+                        </div>
                     </div>
                     <div class="relative ml-auto">
                         <button type="button" wire:click="handle_toggle_module_more_dropdown({{ $i }},{{ $mod_idx }})" class="w-8 h-8 ml-auto" >
@@ -270,7 +279,7 @@ $handle_delete_module = function ($id){
                         </div>
                         @endif
                     </div>
-                </a>
+                </div>
                 @endforeach
             </div>
             @endforeach

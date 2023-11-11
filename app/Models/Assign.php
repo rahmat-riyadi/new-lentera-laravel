@@ -19,4 +19,8 @@ class Assign extends Model
         return $this->hasMany(AssignPluginConfig::class, 'assignment');
     }
 
+    public function submission(){
+        return $this->hasMany(AssignSubmission::class, 'assignment');
+    }
+
 }

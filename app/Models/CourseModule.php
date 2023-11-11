@@ -19,4 +19,12 @@ class CourseModule extends Model
         return $this->belongsTo(Module::class, 'module');
     }
 
+    public function sectionDetail(){
+        return $this->belongsTo(CourseSection::class, 'section');
+    }
+
+    public function course(){
+        return $this->belongsTo(Course::class, 'course');
+    }
+
 }

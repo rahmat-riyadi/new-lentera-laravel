@@ -7,6 +7,7 @@ use App\Models\Course;
 use App\Models\CourseModule;
 use App\Models\CourseSection;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
 class CourseModuleController extends Controller
@@ -23,7 +24,7 @@ class CourseModuleController extends Controller
                         ->where('section', $section_num)
                         ->first();
 
-        $sequence = explode(',', trim($course_section->seuqence));
+        $sequence = explode(',', trim($course_section->sequence));
 
         if(empty($sequence)){
             $newsequence = "$cmid";

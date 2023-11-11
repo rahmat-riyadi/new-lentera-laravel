@@ -35,8 +35,8 @@ $handle_toggle_collapse = function ($section){
 };
 
 $submit = function (){
+    // $this->validate();
     try {
-        $this->validate();
         $this->form->store();
         $this->redirect("/course/{$this->course->shortname}");
     } catch (\Throwable $th) {
@@ -75,6 +75,9 @@ $submit = function (){
                             <div class="text-field flex w-1/2" >
                                 <input type="text" wire:model="form.name" id="url" placeholder="Masukkan Nama"  class="text-field-base peer grow">
                             </div>
+                            @error('form.name')
+                            <span class="text-error text-xs " >{{ $message }}</span> 
+                            @enderror
                         </label>
                     </div>
 
@@ -140,12 +143,12 @@ $submit = function (){
                             <span class="block label text-gray-600 text-[12px] mb-3" >Pilih Berdasarkan</span>
                             <div class="flex">
                                 <label for="date" class="flex items-center mb-4" >
-                                    <input value="date" name="duedate" id="date" type="radio" class="radio">
+                                    <input value="date" wire:model.live="form.duedatetype" name="duedate" id="date" type="radio" class="radio">
                                     <span class="font-medium text-sm text-grey-700 ml-2" >Tanggal</span>
                                 </label>
                         
                                 <label for="time" class="flex items-center mb-4 ml-20" >
-                                    <input value="time" name="duedate" id="time" type="radio" class="radio">
+                                    <input value="time" wire:model.live="form.duedatetype" name="duedate" id="time" type="radio" class="radio">
                                     <span class="font-medium text-sm text-grey-700 ml-2" >Waktu/Jam</span>
                                 </label>
                             </div>
@@ -159,7 +162,7 @@ $submit = function (){
                             <label for="start_date">
                                 <span class="block label text-gray-600 text-[12px] mb-1" >Tanggal dimulai</span>
                                 <div class="text-field flex" >
-                                    <input type="date" id="start_date"  class="text-field-base grow peer">
+                                    <input @if($form->duedatetype == 'time') disabled @endif type="date" wire:model="form.duedate_start_date" id="start_date"  class="text-field-base grow peer">
                                     <x-icons.date class="fill-grey-500 peer-focus:fill-primary" />
                                 </div>
                             </label>
@@ -168,7 +171,7 @@ $submit = function (){
                             <label for="start_time">
                                 <span class="block label text-gray-600 text-[12px] mb-1" >Waktu dimulai</span>
                                 <div class="text-field flex" >
-                                    <input type="time" id="maxfilesubmissions"  class="text-field-base grow peer">
+                                    <input type="time" id="maxfilesubmissions" wire:model="form.duedate_start_time"  class="text-field-base grow peer">
                                     <x-icons.clock class="fill-grey-500 peer-focus:fill-primary" />
                                 </div>
                             </label>
@@ -180,7 +183,7 @@ $submit = function (){
                             <label for="end_date">
                                 <span class="block label text-gray-600 text-[12px] mb-1" >Tanggal akhir</span>
                                 <div class="text-field flex" >
-                                    <input type="date"  id="end_date"  class="text-field-base grow peer">
+                                    <input wire:model="form.duedate_end_date" type="date" @if($form->duedatetype == 'time') disabled @endif id="end_date"  class="text-field-base grow peer">
                                     <x-icons.date class="fill-grey-500 peer-focus:fill-primary" />
                                 </div>
                             </label>
@@ -189,7 +192,7 @@ $submit = function (){
                             <label for="end_time">
                                 <span class="block label text-gray-600 text-[12px] mb-1" >Waktu akhir</span>
                                 <div class="text-field flex" >
-                                    <input type="time"  id="end_time"  class="text-field-base grow peer">
+                                    <input wire:model="form.duedate_end_time" type="time"  id="end_time"  class="text-field-base grow peer">
                                     <x-icons.clock class="fill-grey-500 peer-focus:fill-primary" />
                                 </div>
                             </label>
@@ -216,12 +219,12 @@ $submit = function (){
                             <span class="block label text-gray-600 text-[12px] mb-3" >Apakah anda ingin mengulang sesi</span>
                             <div class="flex">
                                 <label for="kehadiran" class="flex items-center mb-4" >
-                                    <input wire:model="form.submissiontype" value="onlinetext" name="activity" id="kehadiran" type="radio" class="radio">
+                                    <input wire:model.live="form.submissiontype" value="onlinetext" name="activity" id="kehadiran" type="radio" class="radio">
                                     <span class="font-medium text-sm text-grey-700 ml-2" >Text Daring</span>
                                 </label>
                         
                                 <label for="berkas" class="flex items-center mb-4 ml-20" >
-                                    <input wire:model="form.submissiontype" value="file" name="activity" id="berkas" type="radio" class="radio">
+                                    <input wire:model.live="form.submissiontype" value="file" name="activity" id="berkas" type="radio" class="radio">
                                     <span class="font-medium text-sm text-grey-700 ml-2" >File</span>
                                 </label>
                             </div>
@@ -234,7 +237,7 @@ $submit = function (){
                     <label for="word_length">
                         <span class="block label text-gray-600 text-[12px] mb-1" >Jumlah maksimum kata</span>
                         <div class="text-field flex w-[270px]" >
-                            <input type="number" bind:value={formData.wordlimit} id="word_length" placeholder="Masukkan jumlah kata"  class="text-field-base peer grow">
+                            <input type="number" wire:model="form.wordlimit" id="word_length" placeholder="Masukkan jumlah kata"  class="text-field-base peer grow">
                         </div>
                     </label>
                     @else
@@ -243,10 +246,11 @@ $submit = function (){
                             <label for="end_date">
                                 <span class="block label text-gray-600 text-[12px] mb-1" >Tipe File</span>
                                 <div class="text-field flex" >
-                                    <select class="text-field-base grow peer" >
-                                        <option>Document(.pdf, .docs, .pptx, dll)</option>
-                                        <option>Gambar(.jpg, .png, .jpeg, dll)</option>
-                                        <option>Semua Tipe File</option>
+                                    <select wire:model="form.file_types" class="text-field-base grow peer" >
+                                        <option value="">Pilih Tipe File</option>
+                                        <option value="document" >Document(.pdf, .docs, .pptx, dll)</option>
+                                        <option value="image" >Gambar(.jpg, .png, .jpeg, dll)</option>
+                                        <option value="*" >Semua Tipe File</option>
                                     </select>
                                 </div>
                             </label>
@@ -255,8 +259,7 @@ $submit = function (){
                             <label for="end_time">
                                 <span class="block label text-gray-600 text-[12px] mb-1" >Jumlah Berkas</span>
                                 <div class="text-field flex" >
-                                    <input type="time"  id="maxfilesubmissions"  class="text-field-base grow peer">
-                                    <x-icons.clock on:click={handleClickDateTimeIcon} class="fill-grey-500 peer-focus:fill-primary" />
+                                    <input type="number" wire:model="form.maxfilesubmissions"  id="maxfilesubmissions"  class="text-field-base grow peer">
                                 </div>
                             </label>
                         </div>
@@ -264,7 +267,7 @@ $submit = function (){
                             <label for="end_time">
                                 <span class="block label text-gray-600 text-[12px] mb-1" >Ukuran Maksimum Berkas</span>
                                 <div class="text-field flex" >
-                                    <select class="text-field-base grow peer" >
+                                    <select wire:model="form.max_file_size" class="text-field-base grow peer" >
                                         <option value="3145728" >Batas Maks (3 Mb)</option>
                                         <option value="2097152" >2 Mb</option>
                                         <option value="1048576" >1 Mb</option>
