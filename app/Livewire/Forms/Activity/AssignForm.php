@@ -91,8 +91,11 @@ class AssignForm extends Form
 
 
 
+        // Log::debug($this->duedatetype);
         // Log::debug($this->duedate_end_date);
         // Log::debug($this->duedate_end_time);
+        // Log::debug($this->duedate);
+        // Log::debug($this->allowsubmissionsfromdate);
         // Log::debug($this->all());
         // return;
 
@@ -113,7 +116,8 @@ class AssignForm extends Form
             'requireallteammemberssubmit' => 100,
             'blindmarking' => 100,
             'markingworkflow' => 100,
-            'duedate' => strtotime($this->duedate),
+            'duedate' => $this->allowsubmissionsfromdate,
+            'duedate' => $this->duedate,
             'timemodified' => time()
         ]);
 

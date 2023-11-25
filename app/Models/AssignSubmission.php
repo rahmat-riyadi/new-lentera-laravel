@@ -13,4 +13,16 @@ class AssignSubmission extends Model
 
     protected $guarded = ['id'];
 
+    public function assign(){
+        return $this->belongsTo(Assign::class, 'assignment');
+    }
+
+    public function user(){
+        return $this->belongsTo(User::class, 'userid');
+    }
+
+    public function urlSubmission(){
+        return $this->hasOne(AssignSubmissionOnlineText::class, 'submission');
+    }
+
 }

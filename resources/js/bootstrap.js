@@ -30,3 +30,51 @@ window.axios.defaults.headers.common['X-Requested-With'] = 'XMLHttpRequest';
 //     forceTLS: (import.meta.env.VITE_PUSHER_SCHEME ?? 'https') === 'https',
 //     enabledTransports: ['ws', 'wss'],
 // });
+
+import Toastify from 'toastify-js'
+import "toastify-js/src/toastify.css"
+
+function Toast(){
+
+    this.toastConfig = {
+        duration: 2000,
+        close: true,
+        gravity: "bottom", // `top` or `bottom`
+        position: "right", // `left`, `center` or `right`
+        stopOnFocus: true, // Prevents dismissing of toast on hover
+    }
+
+    this.successToast = Toastify({
+        ...this.toastConfig,
+        style: {
+            background: "#fff",
+            borderBottom: '3px solid #36B37E',
+            boxShadow: 'rgba(9, 30, 66, 0.25) 0px 4px 8px -2px, rgba(9, 30, 66, 0.08) 0px 0px 0px 1px',
+            color: '#36B37E',
+            width: '250px',
+            fontWeight: '600',
+            fontSize: '14px'
+        }
+    })
+
+    this.errorToast =  Toastify({
+        ...this.toastConfig,
+        style: {
+            backgroundColor: "green",
+        },
+    })
+
+    this.show = function(type, message){
+        if(type == 'success'){
+            this.successToast.options.text = message
+            this.successToast.showToast()
+        } else {
+            this.errorToast.options.text = message
+            this.errorToast.showToast()
+        }
+
+    }
+
+}
+
+window.Toast = Toast

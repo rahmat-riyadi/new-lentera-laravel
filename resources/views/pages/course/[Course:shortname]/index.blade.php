@@ -80,9 +80,8 @@ $change_title_name = function (){
 };
 
 $add_section = function (){
-    
-    $currSection = $this->course->section->max('section');
 
+    $currSection = $this->course->section->max('section');
     $this->course->section()->create([
         'section' => $currSection+1,
         'summaryformat' => 1,
@@ -93,6 +92,7 @@ $add_section = function (){
     ]);
     Helper::purge_caches();
     $this->fetch_content();
+    $this->dispatch('showToast', 'success', 'Topik Berhasil Dibuat');
 
 };
 
@@ -118,6 +118,9 @@ $handle_add_activity = function (){
         case 'penugasan':
             $this->redirect("/course/{$this->course->shortname}/activity/assignment/create?section={$this->activity_section}");
             break;
+        case 'quiz':
+            $this->redirect("/course/{$this->course->shortname}/activity/quiz/create?section={$this->activity_section}");
+            break;
         
         default:
             # code...
@@ -132,6 +135,20 @@ $handle_delete_module = function ($id){
         $this->fetch_content();
     } catch (\Throwable $th) {
         Log::debug($th->getMessage());
+    }
+
+};
+
+$handle_delete_topic = function ($id){
+    
+    try {
+        CourseSection::destroy($id);
+        $this->fetch_content();
+        Helper::purge_caches();
+        $this->dispatch('showToast', 'success', 'Topik Berhasil dihapus');
+    } catch (\Throwable $th) {
+        Log::debug($th->getMessage());
+        $this->dispatch('showToast', 'error', $th->getMessage());
     }
 
 }
@@ -228,7 +245,7 @@ $handle_delete_module = function ($id){
                         </button>
                         @if ($more_dropdown_idx == $i)
                         <div class="absolute z-10 mt-2 bg-white rounded-lg p-4 px-5 w-max right-0 top-6 shadow-[0_8px_30px_rgb(0,0,0,0.12)] transform transition ease-in-out duration-300 opacity-100 scale-y-100 group-hover:opacity-100 group-hover:scale-y-100">
-                            <button class="text-sm cursor-pointer" >hapus pertemuan</button>
+                            <button wire:click="handle_delete_topic('{{ $section['id'] }}')" class="text-sm cursor-pointer" >hapus pertemuan</button>
                         </div>
                         @endif
                     </div>
@@ -238,7 +255,7 @@ $handle_delete_module = function ($id){
                     switch ($module['modname']) {
                         case 'quiz':
                             $icon = asset('assets/icons/kuis.svg');
-                            $detail_url = "";
+                            $detail_url = "/course/{$course->shortname}/activity/quiz/detail/{$module['id']}";
                             break;
                         case 'url':
                             $icon = asset('assets/icons/url.svg');
@@ -318,7 +335,7 @@ $handle_delete_module = function ($id){
             </label>
     
             <label for="kuis" class="flex items-center mb-4" >
-                <input wire:model="activity" value="kuis" name="activity" id="kuis" type="radio" class="radio">
+                <input wire:model="activity" value="quiz" name="activity" id="kuis" type="radio" class="radio">
                 <img src="{{ asset('assets/icons/kuis.svg') }}" alt="" class="mx-[14px] w-12">
                 <span class="font-medium" >Kuis</span>
             </label>
@@ -339,5 +356,16 @@ $handle_delete_module = function ($id){
         </x-modal>
 
     </div>
+    
+    <script type="module" >
+        document.addEventListener('livewire:initialized', () => {
+
+            let toast = new Toast();
+
+            @this.on('showToast', (event) => {
+                toast.show(event[0], event[1])
+            });
+        });
+    </script>
     @endvolt
 </x-layouts.app>

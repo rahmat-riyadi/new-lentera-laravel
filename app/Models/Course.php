@@ -27,4 +27,8 @@ class Course extends Model
         return $this->hasMany(Assign::class, 'course');
     }
 
+    public function quiz(){
+        return $this->hasMany(Assign::class, 'course');
+    }
+
 }

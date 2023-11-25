@@ -21,10 +21,11 @@ state([
     'participantCount',
     'submitted',
     'needGrading',
-    'studentSubmissionList'
+    'studentSubmissionList',
+    'course'
 ]);
 
-mount(function ($cmid){
+mount(function ($cmid, Course $course){
     $this->courseModule = CourseModule::find($cmid);
     $this->assign = Assign::find($this->courseModule->instance);
     $this->assignPlugin = AssignPluginConfig::where('assignment', $this->assign->id)->get();
@@ -101,7 +102,9 @@ $getSubmittedCount = function ($courseid, $roleid, $assignid, $duedate){
             $studentObject->status = null;
             $studentObject->submissiontime = null;
             $studentObject->is_late = null;
+            $studentObject->submission_id = null;
         } else {
+            $studentObject->submission_id = $submissionData->id;
             $studentObject->status = $submissionData->status;
             $submissiontime = Carbon\Carbon::parse($submissionData->timecreated);
             $studentObject->submissiontime = $submissiontime->translatedFormat('d F Y, H:i');
@@ -161,7 +164,7 @@ $getSubmittedCount = function ($courseid, $roleid, $assignid, $duedate){
                 <p class="text-grey-700 text-sm" > {!! $assign->intro !!}</p>
                 <div class="columns-4 mt-4 font-medium text-sm" >
                     <p class="text-grey-500" >Tenggat Waktu</p>
-                    <p class="text-[#121212]" ><span class="mr-2" >:</span> {{ Carbon\Carbon::parse($assign->duedate)->format('d F Y, H:i') }}</p>
+                    <p class="text-[#121212]" ><span class="mr-2" >:</span> {{ Carbon\Carbon::parse($assign->duedate)->tz('Asia/Makassar')->translatedFormat('d F Y, H:i') }}</p>
                     <p class="text-grey-500" >Peserta</p>
                     <p class="text-[#121212]" ><span class="mr-2" >:</span> {{ $participantCount }}</p>
                 </div>
@@ -212,7 +215,15 @@ $getSubmittedCount = function ($courseid, $roleid, $assignid, $duedate){
                                 {{ !is_null($student->grade) ? number_format($student->grade, 2, ',') : '0,00' }}
                             </td>
                             <td >
-                                <a href="/course/{courseId}/assignment/{assignmentId}/submission/{student.id}" class="btn btn-outlined" >
+                                <a 
+                                    @if (is_null($student->submission_id))
+                                    href="javascript:;" 
+                                    @else
+                                    wire:navigate 
+                                    href="/course/{{ $course->shortname }}/activity/assignment/detail/{{ $courseModule->id }}/assessment/{{ $student->submission_id }}" 
+                                    @endif
+                                    class="btn btn-outlined" 
+                                >
                                     Nilai
                                 </a>
                             </td>
