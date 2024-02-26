@@ -1,0 +1,200 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+* {
+    font-family: 'quicksands' !important;
+}
+
+input:focus {
+    outline: none;
+}
+
+input,
+textarea,
+button,
+select,
+a {
+    -webkit-tap-highlight-color: transparent;
+}
+
+/* input[type="time"]::-webkit-calendar-picker-indicator,
+input[type="date"]::-webkit-calendar-picker-indicator {
+    display: none;
+    -webkit-appearance: none;
+} */
+
+@layer utilities {
+
+    .side-bar-shadow {
+        box-shadow: 0px 2px 4px 0px rgba(16, 24, 40, 0.10), 0px 1px 1px 0px rgba(16, 24, 40, 0.10);
+    }
+
+    .course-page-header {
+        box-shadow: 0px 1px 1px 0px rgba(16, 24, 40, 0.08), inset 0px 1px 1px 0px rgba(16, 24, 40, 0.10),inset 1px 0px 1px 0px rgba(16, 24, 40, 0.10);
+    }
+
+    .table-head {
+        @apply bg-grey-200
+    }
+
+    .table-head > tr > td {
+        @apply py-3 font-medium text-grey-700 text-sm
+    }
+
+    .table-head > tr > td:first-child {
+        @apply pl-3
+    }
+
+
+    .table-body > tr > td {
+        @apply py-3 font-medium text-[#121212] text-sm border-b border-grey-200
+    }
+
+    .table-body > tr > td:first-child {
+        @apply pl-3
+    }
+
+    .table-body > tr:last-child > td {
+        @apply border-none
+    }
+
+}
+
+
+@layer components {
+
+    .no-scrollbar::-webkit-scrollbar {
+        display: none;
+    }
+
+    /* Hide scrollbar for IE, Edge and Firefox */
+    .no-scrollbar {
+        -ms-overflow-style: none;  /* IE and Edge */
+        scrollbar-width: none;  /* Firefox */
+    }
+
+    .headline-1 {
+        @apply font-bold text-[32px] leading-[48px]
+    }
+
+    .headline-2 {
+        @apply font-bold text-[28px] leading-[42px]
+    }
+
+    .headline-3 {
+        @apply font-bold text-[24px] leading-[36px]
+    }
+
+    .subtitle-1 {
+        @apply font-semibold text-[20px] leading-[30px]
+    }
+
+    .subtitle-2 {
+        @apply font-semibold text-base
+    }
+
+    .body-1 {
+        @apply text-base font-bold
+    }
+
+    .body-2 {
+        @apply text-[14px] leading-[24px] font-medium 
+    }
+
+    .label {
+        @apply text-[12px] leading-[18px] font-medium 
+    }
+
+    .text-field {
+        @apply ring-1 text-sm ring-gray-300 py-2 rounded-xl px-3 w-full bg-grey-100 focus-within:ring-primary focus-within:ring-2 transition-all box-border focus:outline-none placeholder:text-grey-400 placeholder:font-medium
+    }
+
+    .text-field-base {
+        @apply bg-transparent
+    }
+    
+    .checkbox {
+        @apply accent-primary bg-white rounded-[3px] text-white appearance-none checked:bg-primary ring-1 ring-grey-300 checked:ring-0 transition
+    }
+
+    .checkbox:checked {
+        background-image: url('/resources/icons/check.svg');
+        background-repeat: no-repeat;
+        background-position: center;
+        background-size: 13px 13px;
+    }
+
+    .radio {
+        @apply w-[21px] h-[21px] border-8 appearance-none rounded-full ring-[1px] ring-grey-300 bg-transparent checked:ring-primary checked:ring-[1px] checked:bg-primary checked:border-[3px] border-white transition-all duration-200
+    }
+
+    .btn-base {
+        @apply body-2 text-white text-base font-semibold
+    }
+
+    .btn-primary {
+        @apply bg-primary hover:bg-[#2D9D6E] rounded-lg py-2 disabled:bg-[#A9DBC5] transition-all text-sm text-white font-semibold px-[20px] 
+    }
+
+    .btn-light {
+        @apply bg-primary-light hover:bg-[#CCF3D4] rounded-lg py-2 disabled:bg-[#DDF6E2] disabled:text-[#36B37E80] transition-all text-sm px-[20px] text-primary font-semibold
+    }
+
+    .btn-outlined {
+        @apply bg-transparent border border-primary hover:bg-[#EDF6EF] rounded-xl py-2 disabled:border-[#36B37E80] disabled:text-[#36B37E80] transition-all text-sm px-[20px] text-primary font-semibold
+    }
+
+    .btn-icon-primary {
+        @apply bg-primary hover:bg-[#2D9D6E] rounded-lg w-9 h-9 flex justify-center items-center transition-all
+    }
+
+    .btn-icon-light {
+        @apply bg-primary-light hover:bg-[#CCF3D4] rounded-lg w-9 h-9 flex justify-center items-center transition-all
+    }
+    
+    .btn-large  {
+        @apply py-3 px-6
+    }
+
+    .btn-tabs {
+        @apply px-4 py-[6px] text-grey-400 bg-transparent text-[12.5px] transition-all rounded-[10px]
+    }    
+
+    .btn-tabs.active {
+        @apply text-primary bg-primary-light font-medium 
+    }    
+
+    .chip {
+        @apply text-sm
+    }
+
+    .chip {
+        @apply text-sm px-2 py-[6px] rounded-full font-semibold
+    }
+
+    .chip.attend {
+        @apply text-primary bg-primary-light 
+    }
+
+    .chip.assignment {
+        @apply text-[#00AED6] bg-[#E1F1F8]
+    }
+
+    .chip.sick {
+        @apply text-[#93328E] bg-[#E9D6E8]
+    }
+
+    .chip.late {
+        @apply text-[#FFAB00] bg-[#FAF2E2]
+    }
+
+    .chip.absen {
+        @apply text-[#FF5630] bg-[#FAEAE7]
+    }
+
+    .chip.empty {
+        @apply text-grey-800 bg-grey-300
+    }
+
+}
