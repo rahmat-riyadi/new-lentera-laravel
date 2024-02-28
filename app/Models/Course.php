@@ -34,7 +34,7 @@ class Course extends Model
     }
 
     public function resource(){
-        return $this->hasMany(Resource::class, 'course');
+        return $this->hasMany(Resource::class);
     }
 
 }

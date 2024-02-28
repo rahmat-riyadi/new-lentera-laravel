@@ -5,6 +5,7 @@ namespace App\Livewire\Forms\Activity;
 use App\Helpers\CourseHelper;
 use App\Models\Course;
 use App\Models\Module;
+use App\Models\Url;
 use Illuminate\Support\Facades\DB;
 use Livewire\Attributes\Rule;
 use Livewire\Form;
@@ -19,6 +20,8 @@ class UrlForm extends Form
     }
 
     public Module $module;
+
+    public ?Url $urlInstance;
 
     public ?Course $course;
 
@@ -41,6 +44,15 @@ class UrlForm extends Form
         $this->section_num = $section_num;
     }
 
+    public function setUrl(Url $url){
+        $this->fill([
+            'urlInstance' => $url,
+            'name' => $url->name,
+            'description' => $url->description,
+            'url' => $url->url,
+        ]);
+    }
+
     public function store(){
 
         DB::beginTransaction();
@@ -53,6 +65,20 @@ class UrlForm extends Form
             DB::commit();
         } catch (\Throwable $th) {
             DB::rollBack();
+            throw $th;
+        }
+
+    }
+
+    public function update(){
+
+        try {
+            $this->urlInstance->update([
+                'name' => $this->name,
+                'description' => $this->description,
+                'url' => $this->url,
+            ]);
+        } catch (\Throwable $th) {
             throw $th;
         }
 

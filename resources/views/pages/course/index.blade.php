@@ -57,8 +57,8 @@ $get_sections = function ($course){
                 ->where('id', $cm->instance)
                 ->first(['id', 'name', 'description']);
 
-                $module->name = $instance->name;
-                $module->description = $instance->description;
+                $module->name = $instance->name ?? '';
+                $module->description = $instance->description ?? '';
                 $module->modname = $selectedModule->name;
 
                 $section->modules[] = $module;
@@ -264,7 +264,7 @@ on(['delete-module' => 'delete_activity']);
                             x-transition:leave-start="opacity-100 translate-y-0"
                             x-transition:leave-end="opacity-0 translate-y-2"
                             class="absolute w-[200px] z-10 mt-2 bg-white rounded-lg py-3 px-3 right-0 top-6 shadow-[0_8px_30px_rgb(0,0,0,0.12)] transform group-hover:opacity-100 group-hover:scale-y-100">
-                            <li @click="editModule({{ $module->modname }}, {{ $module->instance }})" class="text-xs cursor-pointer rounded-lg hover:bg-grey-100 px-3 py-2 text-left" >
+                            <li @click="editModule(@js($module->modname), {{ $module->instance }}, {{ $section->section }})" class="text-xs cursor-pointer rounded-lg hover:bg-grey-100 px-3 py-2 text-left" >
                                 Edit Aktivitas
                             </li>
                             <li @click="deleteModule({{ $module->id }})" class="text-xs cursor-pointer rounded-lg hover:bg-grey-100 px-3 py-2 text-left" >
@@ -404,6 +404,10 @@ on(['delete-module' => 'delete_activity']);
             },
             createActivity(){
                 Livewire.navigate(`/course/${this.course.shortname}/activity/create/${this.activity.current}/section/${this.activity.section}`)
+            },
+            editModule(mod, id, section){
+                console.log({ mod, id})
+                Livewire.navigate(`/course/${this.course.shortname}/activity/update/${mod}/instance/${id}/section/${section}`)
             },
             deleteModule(id){
                 this.dropdownModule = this.dropdownModule.filter(e => e !== id)

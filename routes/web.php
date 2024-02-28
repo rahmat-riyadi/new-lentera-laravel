@@ -28,6 +28,7 @@ Route::group(['prefix' => 'course'], function(){
 
     Route::group(['prefix' => '{course:shortname}/activity'], function(){
         Route::get('create/{activity}/section/{section}', [ActivityController::class, 'create']);
+        Route::get('update/{activity}/instance/{id}/section/{section}', [ActivityController::class, 'edit']);
     });
 
 })->middleware('auth');
