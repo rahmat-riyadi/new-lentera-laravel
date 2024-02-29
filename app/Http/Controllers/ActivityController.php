@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Attendance;
 use App\Models\Course;
 use App\Models\CourseModule;
 use App\Models\CourseSection;
@@ -13,6 +14,9 @@ use Illuminate\Support\Facades\Log;
 
 class ActivityController extends Controller
 {
+
+    protected $root_dir = 'pages.course.activity';
+
     public function create(Course $course, $activity, $section){
         $section = CourseSection::where('section', $section)->where('course', $course->id)->first(['id', 'name', 'section']);
         return view("pages.course.activity.$activity.create", compact('course', 'section'));
@@ -34,5 +38,19 @@ class ActivityController extends Controller
                 # code...
                 break;
         }
+    }
+
+    public function show(Course $course, $activity, CourseModule $courseModule){
+
+        $section = CourseSection::find($courseModule->section);
+
+        if($activity == 'attendance'){
+
+            $attendance = Attendance::find($courseModule->instance);
+
+            return view("$this->root_dir.attendance.detail", compact('course', 'section', 'attendance'));
+        }
+     
+        
     }
 }

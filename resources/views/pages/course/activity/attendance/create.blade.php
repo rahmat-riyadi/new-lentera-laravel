@@ -22,6 +22,7 @@ $submit = function (){
     $this->form->validate();
     try {
         $this->form->store();
+        $this->redirect('/course/'.$this->course->shortname, navigate: true);
     } catch (\Throwable $th) {
         Log::info($th->getMessage());
         throw $th;
@@ -109,14 +110,13 @@ $submit = function (){
                         <div>
                             <span class="block label text-gray-600 mb-2" >Apakah anda ingin mengulang sesi</span>
                             <label for="remember" class="flex items-center" >
-                                <input type="checkbox" name="repeat" class="checkbox w-[18px] h-[18px]" id="remember">
+                                <input value="1" wire:model="form.is_repeat" type="checkbox" name="repeat" class="checkbox w-[18px] h-[18px]" id="remember">
                                 <span class="text-sm ml-2" >Ulang Sesi</span>
                             </label>
                         </div>
                         <label for="timeStart">
                             <span class="block label text-gray-600 text-[12px] mb-1" >Ulang berapa kali</span>
-                            <input class="text-field" name="repetitionAttempt" type="number" />
-                            <span class="peer-has-[:focus:invalid]:inline-block hidden text-error text-sm mt-1" >Url Harus Diisi</span>
+                            <input wire:model="form.repeat_attempt" class="text-field" name="repetitionAttempt" type="number" />
                         </label>
                     </div>
                 </x-collapse>

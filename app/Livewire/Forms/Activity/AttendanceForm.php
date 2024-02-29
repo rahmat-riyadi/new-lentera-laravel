@@ -2,9 +2,12 @@
 
 namespace App\Livewire\Forms\Activity;
 
+use App\Helpers\CourseHelper;
 use App\Models\Attendance;
 use App\Models\Course;
 use App\Models\Module;
+use App\Models\Role;
+use Illuminate\Support\Facades\DB;
 use Livewire\Attributes\Rule;
 use Livewire\Form;
 
@@ -55,11 +58,48 @@ class AttendanceForm extends Form
     }
 
     public function store(){
+
+        DB::beginTransaction();
+
         try {
-            Attendance::create(
-                $this->only('name', 'description')
-            );
+
+            $instance = Attendance::create([
+                'course_id' => $this->course->id,
+                'name' => $this->name,
+                'description' => $this->description,
+                'date' => $this->date,
+                'starttime' => $this->starttime,
+                'endtime' => $this->endtime,
+                'is_repeat' => isset($this->is_repeat),
+                'repeat_attempt' => $this->repeat_attempt ?? 0,
+                'filled_by' => $this->filled_by,
+            ]);
+
+            $role = Role::where('shortname', 'student')->first();
+
+            $participantsData = DB::connection('moodle_mysql')
+            ->table('mdl_enrol')
+            ->where('mdl_enrol.courseid', '=', $this->course->id)
+            ->where('mdl_enrol.roleid', '=', $role->id)
+            ->where('mdl_user_enrolments.userid', '!=', auth()->user()->id)
+            ->join('mdl_user_enrolments', 'mdl_user_enrolments.enrolid', 'mdl_enrol.id')
+            ->join('mdl_user', 'mdl_user.id', 'mdl_user_enrolments.userid')
+            ->select('mdl_user.id')->get();
+
+            $participantsData = $participantsData->map(function($val){
+                return [
+                    'student_id' => $val->id,
+                ];
+            });
+
+            $instance->students()->createMany($participantsData);
+
+            $cm = CourseHelper::addCourseModule($this->course->id, $this->module->id, $instance->id);
+            CourseHelper::addContext($cm->id, $this->course->id);
+            CourseHelper::addCourseModuleToSection($this->course->id, $cm->id, $this->section_num);
+            DB::commit();
         } catch (\Throwable $th) {
+            DB::rollBack();
             throw $th;
         }
     }

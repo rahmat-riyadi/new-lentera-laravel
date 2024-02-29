@@ -1,0 +1,224 @@
+<?php
+
+use function Livewire\Volt\{state, mount, on, form};
+use App\Livewire\Forms\Attendance\FillForm;
+use App\Models\{
+    Course,
+    CourseSection,
+    Attendance,
+    User,
+    StudentAttendance,
+    CourseModule,
+};
+
+form(FillForm::class);
+state(['course', 'section', 'attendance', 'students', 'courseModule']);
+
+mount(function (Course $course,CourseSection $section, Attendance $attendance, CourseModule $courseModule){
+    $this->course = $course;
+    $this->section = $section;
+    $this->attendance = $attendance;
+    $this->courseModule = $courseModule;
+    $this->form->setModel($attendance);
+});
+
+$submit = function (){
+    try {
+        $this->form->submit();  
+        $this->dispatch('notify', 'success', 'Absen berhasil disimpan');
+    } catch (\Throwable $th) {
+        Log::info($th->getMessage());
+        $this->dispatch('notify', 'error', 'Terjadi Kesalahan');
+    }
+};
+
+?>
+
+<x-layouts.app>
+    @volt
+    <div x-data class="h-full overflow-y-auto relative">
+        <div class=" bg-white course-page-header px-8 py-8 font-main flex flex-col" >
+            <x-back-button wire:navigate.hover path="/course/{{ $this->course->shortname }}/activity/attendance/detail/{{ $courseModule->id }}" />
+            <p class="text-sm text-[#656A7B] font-[400] flex items-center my-5" >Matakuliah <span class="mx-2 text-[9px]" > >> </span> {{ $course->fullname }} <span class="mx-2 text-[9px]" > >> </span>  <span >Detail Kehadiran - {{ $section->name }}</span> <span class="mx-2 text-[9px]" > >> </span> <span class="text-[#121212]" >Lakukan Kehadiran </span></p>
+            <h1 class="text-[#121212] text-xl font-semibold" >Lakukan Kehadiran</h1>
+        </div>
+
+        <form wire:submit="submit">
+            <div class="p-8" >
+                <div class="bg-white p-4" >
+                    <table class=" w-full"  >
+                        <thead class="table-head" >
+                            <tr>
+                                <td class="w-14" >No.</td>
+                                <td class="w-[280px]" >Mahasiswa</td>
+                                <td class="text-center" >H</td>
+                                <td class="text-center" >I</td>
+                                <td class="text-center" >S</td>
+                                <td class="text-center" >T</td>
+                                <td class="text-center" >A</td>
+                                <td class="w-[260px] pr-3 pl-6" >Catatan</td>
+                            </tr>
+                        </thead>
+                        <tbody class="table-body" >
+                            <tr>
+                                <td></td>
+                                <td>Lakukan Pengisian Otomatis:</td>
+                                <td class="text-center" >
+                                    <input value="Hadir" name="all_status" id="date" type="radio" class="radio">
+                                </td>
+                                <td class="text-center" >
+                                    <input value="Izin" name="all_status" id="date" type="radio" class="radio">
+                                </td>
+                                <td class="text-center" >
+                                    <input value="Sakit" name="all_status" id="date" type="radio" class="radio">
+                                </td>
+                                <td class="text-center" >
+                                    <input value="Alpa" name="all_status" id="date" type="radio" class="radio">
+                                </td>
+                                <td class="text-center" >
+                                    <input value="Tanpa Keterangan" name="all_status" id="date" type="radio" class="radio">
+                                </td>
+                                <td></td>
+                            </tr>
+                            @foreach ($form->students as $i => $student)
+                            <tr id="studentRow" >
+                                <td>{{ $i+1 }}</td>
+                                <td>
+                                    <div class="flex items-center" >
+                                        <img src="{{ ('resources/images/avatar.jpg') }}" class="w-[40px] h-[40px] rounded-full object-cover mr-3" alt="">
+                                        <div>
+                                            <p class="mb-1">{{ $student['name'] }}</p>
+                                            <span class="text-grey-500 " >{{ $student['nim'] }}</span>
+                                        </div>
+                                    </div>
+                                </td>
+                                <td class="text-center" >
+                                    <input wire:model="form.students.{{ $i }}.status" value="Hadir" name="{{ $student['id'] }}_status" id="student_status" type="radio" class="radio">
+                                </td>
+                                <td class="text-center" >
+                                    <input wire:model="form.students.{{ $i }}.status" value="Izin" name="{{ $student['id'] }}_status" id="student_status" type="radio" class="radio">
+                                </td>
+                                <td class="text-center" >
+                                    <input wire:model="form.students.{{ $i }}.status" value="Sakit" name="{{ $student['id'] }}_status" id="student_status" type="radio" class="radio">
+                                </td>
+                                <td class="text-center" >
+                                    <input wire:model="form.students.{{ $i }}.status" value="Alpa" name="{{ $student['id'] }}_status" id="student_status" type="radio" class="radio">
+                                </td>
+                                <td class="text-center" >
+                                    <input wire:model="form.students.{{ $i }}.status" value="Tanpa Keterangan" name="{{ $student['id'] }}_status" id="student_status" type="radio" class="radio">
+                                </td>
+                                <td class="pr-3 pl-6" >
+                                    <input wire:model="form.students.{{ $i }}.note" name="{{ $student['id'] }}_note" class="text-field" />
+                                </td>
+                            </tr>
+                            @endforeach
+                            {{-- @foreach ($students as $i => $student)
+                            <tr id="studentRow" >
+                                <td>{{ $i+1 }}</td>
+                                <td>
+                                    <div class="flex items-center" >
+                                        <img src="{{ ('resources/images/avatar.jpg') }}" class="w-[40px] h-[40px] rounded-full object-cover mr-3" alt="">
+                                        <div>
+                                            <p class="mb-1">{{ $student['name'] }}</p>
+                                            <span class="text-grey-500 " >{{ $student['nim'] }}</span>
+                                        </div>
+                                    </div>
+                                </td>
+                                <td class="text-center" >
+                                    <input {{ $student['status'] == 'Hadir' ? 'checked' : '' }} value="Hadir" name="{{ $student['id'] }}_status" id="student_status" type="radio" class="radio">
+                                </td>
+                                <td class="text-center" >
+                                    <input {{ $student['status'] == 'Izin' ? 'checked' : '' }} value="Izin" name="{{ $student['id'] }}_status" id="student_status" type="radio" class="radio">
+                                </td>
+                                <td class="text-center" >
+                                    <input {{ $student['status'] == 'Sakit' ? 'checked' : '' }} value="Sakit" name="{{ $student['id'] }}_status" id="student_status" type="radio" class="radio">
+                                </td>
+                                <td class="text-center" >
+                                    <input {{ $student['status'] == 'Alpa' ? 'checked' : '' }} value="Alpa" name="{{ $student['id'] }}_status" id="student_status" type="radio" class="radio">
+                                </td>
+                                <td class="text-center" >
+                                    <input {{ $student['status'] == 'Tanpa Keterangan' ? 'checked' : '' }} value="Tanpa Keterangan" name="{{ $student['id'] }}_status" id="student_status" type="radio" class="radio">
+                                </td>
+                                <td class="pr-3 pl-6" >
+                                    <input value="{{ $student['notes'] ?? '' }}" name="{{ $student['id'] }}_notes" class="text-field" />
+                                </td>
+                            </tr>
+                            @endforeach --}}
+                        </tbody>
+                    </table>
+                </div>
+                <div class="flex justify-end gap-3 mt-4" >
+                    <x-button type="submit" >
+                        Submit
+                    </x-button>
+                    <x-button @click="$store.alert.cancel = true" variant="outlined" >
+                        Batal
+                    </x-button>
+                </div>
+            </div>
+        </form>
+
+        <x-alert
+            show="$store.alert.cancel"
+            onCancel="$store.alert.cancel = false"
+            type="warning"
+            title="Batal"
+            message="Batalkan pembuatan aktivitas ?"
+        />
+
+    </div>
+
+    @script
+    <script>
+    
+        Alpine.store('alert', {
+            show: false,
+            type: 'warning',
+            toggle() {
+                this.show = ! this.show
+            }
+        })
+
+        Livewire.on('notify', ([ type, message ]) => {
+            toast(type, message)
+        })
+        
+    </script>
+    @endscript
+    
+    @endvolt
+
+    {{-- <script>
+
+        const status = ['Hadir', 'Sakit', 'Izin', 'Alpa', 'Tanpa Keterangan']
+
+        var matchedStatus
+
+        $(document).ready(function(){
+            
+            const participantLength = "{{ count($form->students) }}"
+
+            console.log(participantLength)
+
+            var valuesArray = $("input[type='radio']:checked").not("[name='all_status']").map(function() {
+                return $(this).val();
+            }).get()
+
+            for(let i = 0; i < status.length; i++){
+                var count = valuesArray.filter(function(item) {
+                    return item === status[i];
+                }).length;
+    
+                if(count === participantLength){
+                    matchedStatus = status[i]
+                    break;
+                }
+            }
+
+            if(matchedStatus){
+                $(`input[name='all_status'][value='${matchedStatus}']`).prop('checked', true)
+            }
+        })
+
+    </script> --}}
+</x-layouts.app>

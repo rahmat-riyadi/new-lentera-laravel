@@ -34,7 +34,11 @@ class Course extends Model
     }
 
     public function resource(){
-        return $this->hasMany(Resource::class);
+        return $this->setConnection('mysql')->hasMany(Resource::class);
+    }
+
+    public function attendance(){
+        return $this->setConnection('mysql')->hasMany(Attendance::class);
     }
 
 }

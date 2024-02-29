@@ -53,7 +53,25 @@ $get_sections = function ($course){
 
                 $selectedModule = Module::find($cm->module);
 
-                $instance = DB::table("$selectedModule->name")
+                switch ($selectedModule->name) {
+                    case 'url':
+                        $mod_table = 'url';
+                        break;
+                    case 'resource':
+                        $mod_table = 'resource';
+                        break;
+                    case 'attendance':
+                        $mod_table = 'attendances';
+                        break;
+                    
+                    default:
+                        # code...
+                        break;
+                }
+
+                Log::alert($mod_table);
+
+                $instance = DB::table($mod_table)
                 ->where('id', $cm->instance)
                 ->first(['id', 'name', 'description']);
 
@@ -234,6 +252,10 @@ on(['delete-module' => 'delete_activity']);
                         case 'assign':
                             $icon = asset('assets/icons/penugasan.svg');
                             $detail_url = "/course/{$course->shortname}/activity/assignment/detail/{$module->id}";
+                            break;
+                        case 'attendance':
+                            $icon = asset('assets/icons/kehadiran.svg');
+                            $detail_url = "/course/{$course->shortname}/activity/attendance/detail/{$module->id}";
                             break;
                         case 'resource':
                             $icon = asset('assets/icons/berkas_md.svg');
