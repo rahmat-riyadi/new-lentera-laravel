@@ -30,7 +30,6 @@ class AssignmentForm extends Form
     public $section_num;
 
 
-
     #[Rule('required', message: 'Judul Tugas harus diisi')]
     public $name;
 
