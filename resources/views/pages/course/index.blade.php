@@ -63,6 +63,9 @@ $get_sections = function ($course){
                     case 'attendance':
                         $mod_table = 'attendances';
                         break;
+                    case 'assign':
+                        $mod_table = 'assignments';
+                        break;
                     
                     default:
                         # code...

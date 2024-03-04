@@ -26,7 +26,7 @@ class Course extends Model
     }
 
     public function assignment(){
-        return $this->hasMany(Assign::class, 'course');
+        return $this->setConnection('mysql')->hasMany(Assignment::class);
     }
 
     public function quiz(){

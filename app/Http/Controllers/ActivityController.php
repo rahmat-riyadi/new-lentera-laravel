@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Assignment;
 use App\Models\Attendance;
 use App\Models\Course;
 use App\Models\CourseModule;
@@ -33,6 +34,10 @@ class ActivityController extends Controller
             case 'resource':
                 $resource = Resource::find($id);
                 return view("pages.course.activity.file.edit", compact('course', 'section', 'resource'));
+                break;
+            case 'assign':
+                $assignment = Assignment::find($id);
+                return view("pages.course.activity.assignment.edit", compact('course', 'section', 'assignment'));
                 break;
             default:
                 # code...
