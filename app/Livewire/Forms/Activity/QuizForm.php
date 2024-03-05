@@ -2,9 +2,13 @@
 
 namespace App\Livewire\Forms\Activity;
 
+use App\Helpers\CourseHelper;
 use App\Models\Course;
 use App\Models\Module;
 use App\Models\Quiz;
+use Carbon\Carbon;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Livewire\Attributes\Rule;
 use Livewire\Form;
 
@@ -51,6 +55,9 @@ class QuizForm extends Form
 
     #[Rule('nullable')]
     public $answer_attempt;
+
+    #[Rule('nullable')]
+    public $pass_grade;
     
     #[Rule('nullable')]
     public $show_grade;
@@ -67,6 +74,107 @@ class QuizForm extends Form
 
     public function setSection($section_num){
         $this->section_num = $section_num;
+    }
+
+    public function setInstance(Quiz $quiz){
+
+        $this->quiz = $quiz;
+
+        $this->fill([
+            'name' => $quiz->name,
+            'description' => $quiz->description,
+            'shuffle_questions' => $quiz->shuffle_questions,
+            'question_show_number' => $quiz->question_show_number,
+            'answer_attempt' => $quiz->answer_attempt,
+            'pass_grade' => $quiz->pass_grade,
+            'show_grade' => $quiz->show_grade,
+            'show_answers' => $quiz->show_answers,
+            'activity_remember' => $quiz->activity_remember,
+        ]);
+
+        $start_date = Carbon::parse($quiz->start_date);
+        $end_date = Carbon::parse($quiz->due_date);
+
+        $this->start_date = $start_date->format('Y-m-d');
+        $this->due_date = $end_date->format('Y-m-d');
+
+        $this->start_time = $start_date->format('H:i');
+        $this->due_time = $end_date->format('H:i');
+
+        if($start_date->diffInDays($end_date) == 0){
+            $this->due_date_type = 'time';
+        } else {
+            $this->due_date_type = 'date';
+        }
+
+    }
+
+    public function store(){
+
+        $start_date = Carbon::parse($this->start_date . ' '. $this->start_time );
+        $due_date = Carbon::parse($this->due_date . ' '. $this->due_time );
+
+        DB::beginTransaction();
+
+        try {
+            
+            $instance = $this->course->quiz()->create([
+                'name' => $this->name,
+                'description' => $this->description,
+                'start_date' => $start_date,
+                'due_date' => $due_date,
+                'pass_grade' => $this->pass_grade,
+                'answer_attempt' => $this->answer_attempt,
+                'show_grade' => $this->show_grade,
+                'show_answers' => $this->show_answers,
+                'shuffle_questions' => $this->shuffle_questions,
+                'question_show_number' => $this->question_show_number,
+                'activity_remember' => $this->activity_remember,
+            ]);
+
+            $cm = CourseHelper::addCourseModule($this->course->id, $this->module->id, $instance->id);
+            CourseHelper::addContext($cm->id, $this->course->id);
+            CourseHelper::addCourseModuleToSection($this->course->id, $cm->id, $this->section_num);
+
+            DB::commit();
+            
+        } catch (\Throwable $th) {
+            DB::rollBack();
+            throw $th;
+        }
+
+    }
+
+    public function update(){
+
+        $start_date = Carbon::parse($this->start_date . ' '. $this->start_time );
+        $due_date = Carbon::parse($this->due_date . ' '. $this->due_time );
+
+        DB::beginTransaction();
+
+        try {
+
+            $this->quiz->update([
+                'name' => $this->name,
+                'description' => $this->description,
+                'start_date' => $start_date,
+                'due_date' => $due_date,
+                'pass_grade' => $this->pass_grade ?? 100,
+                'answer_attempt' => $this->answer_attempt ?? 0,
+                'show_grade' => $this->show_grade ?? 0,
+                'show_answers' => $this->show_answers ?? 0,
+                'shuffle_questions' => $this->shuffle_questions ?? 0,
+                'question_show_number' => $this->question_show_number ?? 5,
+                'activity_remember' => $this->activity_remember ?? null,
+            ]);
+
+            DB::commit();
+
+        } catch (\Throwable $th) {
+            DB::rollBack();
+            throw $th;
+        }
+
     }
 
 }

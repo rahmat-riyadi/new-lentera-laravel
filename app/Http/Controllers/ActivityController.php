@@ -8,6 +8,7 @@ use App\Models\Course;
 use App\Models\CourseModule;
 use App\Models\CourseSection;
 use App\Models\Module;
+use App\Models\Quiz;
 use App\Models\Resource;
 use App\Models\Url;
 use Illuminate\Http\Request;
@@ -38,6 +39,10 @@ class ActivityController extends Controller
             case 'assign':
                 $assignment = Assignment::find($id);
                 return view("pages.course.activity.assignment.edit", compact('course', 'section', 'assignment'));
+                break;
+            case 'quiz':
+                $quiz = Quiz::find($id);
+                return view("pages.course.activity.quiz.edit", compact('course', 'section', 'quiz'));
                 break;
             default:
                 # code...

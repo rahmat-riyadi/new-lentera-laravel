@@ -4,16 +4,18 @@ use function Livewire\Volt\{state, mount, on, form};
 use App\Livewire\Forms\Activity\QuizForm;
 use App\Models\{
     Course,
-    CourseSection
+    CourseSection,
+    Quiz,
 };
 
 state(['course', 'section']);
 form(QuizForm::class);
-mount(function (Course $course,CourseSection $section){
+mount(function (Course $course,CourseSection $section, Quiz $quiz){
     $this->course = $course;
     $this->section = $section;
     $this->form->setModel($course);
     $this->form->setSection($section->section);
+    $this->form->setInstance($quiz);
 });
 
 $handle_change_due_date_type = function ($e){
@@ -33,7 +35,7 @@ $submit = function (){
     $this->form->validate();
     
     try {
-        $this->form->store();
+        $this->form->update();
         $this->redirect('/course/'.$this->course->shortname, navigate: true);
     } catch (\Throwable $th) {
         // throw $th;
@@ -73,7 +75,7 @@ $submit = function (){
                         <label for="description">
                             <span class="block label text-gray-600 text-[12px] mb-1" >Deskripsi</span>
                             <div wire:ignore >
-                                <textarea></textarea>
+                                <textarea>{{ $form->description }}</textarea>
                             </div>
                             <input type="hidden" name="intro" />
                             @error('form.description')
@@ -164,7 +166,7 @@ $submit = function (){
                         <div>
                             <span class="block label text-gray-600 mb-3 " >Apakah ingin mengacak soal</span>
                             <label for="shuffle" class="flex items-center" >
-                                <input wire:model="form.shuffle_questions" value="1" type="checkbox" name="shuffle" class="checkbox w-[18px] h-[18px]" id="file_t">
+                                <input @checked($form->shuffle_questions == 1) wire:model="form.shuffle_questions" value="1" type="checkbox" name="shuffle" class="checkbox w-[18px] h-[18px]" id="file_t">
                                 <span class="font-medium text-sm text-grey-700 ml-2" >Acak Soal</span>
                             </label>
                         </div>
@@ -190,14 +192,14 @@ $submit = function (){
                         <div>
                             <span class="block label text-gray-600 mb-3 " >Tampilkan Nilai Ke Mahasiswa</span>
                             <label for="show_grade" class="flex items-center" >
-                                <input wire:model="form.show_grade" value="1" type="checkbox" name="show_grade" class="checkbox w-[18px] h-[18px]" id="file_t">
+                                <input @checked($form->show_grade == 1) wire:model="form.show_grade" value="1" type="checkbox" name="show_grade" class="checkbox w-[18px] h-[18px]" id="file_t">
                                 <span class="font-medium text-sm text-grey-700 ml-2" >Ya Tampilkan</span>
                             </label>
                         </div>
                         <div>
                             <span class="block label text-gray-600 mb-3 " >Tampilkan Jawaban Ke Mahasiswa</span>
                             <label for="show_answer" class="flex items-center" >
-                                <input wire:model="form.show_answers" value="1" type="checkbox" name="show_answer" class="checkbox w-[18px] h-[18px]" id="file_t">
+                                <input @checked($form->show_answers == 1) wire:model="form.show_answers" value="1" type="checkbox" name="show_answer" class="checkbox w-[18px] h-[18px]" id="file_t">
                                 <span class="font-medium text-sm text-grey-700 ml-2" >Ya Tampilkan</span>
                             </label>
                         </div>

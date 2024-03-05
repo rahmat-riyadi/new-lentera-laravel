@@ -13,8 +13,6 @@ use Illuminate\Support\Facades\Log;
 use Livewire\Attributes\Rule;
 use Livewire\Form;
 
-use function PHPSTORM_META\type;
-
 class AssignmentForm extends Form
 {
     function boot(){
