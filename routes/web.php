@@ -3,6 +3,7 @@
 use App\Http\Controllers\ActivityController;
 use App\Http\Controllers\CourseController;
 use App\Http\Controllers\Teacher\AttendanceController;
+use App\Http\Controllers\Teacher\QuizController;
 use App\Models\Role;
 use Illuminate\Support\Facades\Route;
 
@@ -33,12 +34,15 @@ Route::group(['prefix' => 'course'], function(){
         Route::get('update/{activity}/instance/{id}/section/{section}', [ActivityController::class, 'edit']);
         Route::get('/{activity}/detail/{courseModule}', [ActivityController::class, 'show']);
     });
-
     
 })->middleware('auth');
 
 Route::group(['prefix' => 'teacher'], function(){
     Route::group(['prefix' => 'attendance'], function(){
         Route::get('form/{attendance}', [AttendanceController::class, 'form']);
+    });
+
+    Route::group(['prefix' => 'quiz'], function(){
+        Route::get('{quiz}/questions/create', [QuizController::class, 'createQuestion']);
     });
 })->middleware('auth');

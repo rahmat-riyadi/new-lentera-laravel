@@ -48,12 +48,20 @@ $submit = function (){
 <x-layouts.app>
     @volt
     <div x-data="" class="h-full overflow-y-auto relative">
-        <x-activity-subheader 
-            path="/course/{{ $course->shortname }}" 
-            title="Tambah Quiz"
-            :course="$course"
-            :section="$section"
-        />
+        
+
+        <div class="bg-white course-page-header px-8 py-8 font-main flex flex-col" >
+            <x-back-button wire:navigate.hover path="/course/{{ $course->shortname }}" />
+            <p class="text-sm text-[#656A7B] font-[400] flex items-center my-5" >Matakuliah <span class="mx-2 text-[9px]" > >> </span> {{ $course->fullname }} <span class="mx-2 text-[9px]" > >> </span>  <span class="text-[#121212]" >Edit Quiz - {{ $section->name }}</span></p>
+            <div class="flex  justify-center">
+                <h1 class="mr-auto text-[#121212] text-xl font-semibold" >Edit Quiz - {{ $section->name }}</h1>
+                <x-button
+                    @click="Livewire.navigate(`/teacher/quiz/{{ $form->quiz->id }}/questions/create`)"
+                >
+                    Pengaturan Soal
+                </x-button>
+            </div>
+        </div>
 
         <form wire:submit="submit">
             <div class="px-8 pt-8 pb-10 transition-all duration-300 space-y-4" >
