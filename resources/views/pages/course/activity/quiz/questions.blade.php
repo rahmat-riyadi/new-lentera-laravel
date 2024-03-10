@@ -1,6 +1,7 @@
 <?php
 
 use function Livewire\Volt\{state, mount, on, form};
+use App\Livewire\Forms\Quiz\QuestionForm;
 use App\Models\{
     Course,
     CourseSection,
@@ -8,6 +9,8 @@ use App\Models\{
 };
 
 state(['course', 'section', 'quiz', 'questions', 'question_count']);
+
+form(QuestionForm::class);
 
 mount(function (Course $course,CourseSection $section, Quiz $quiz){
     $this->course = $course;
@@ -23,9 +26,14 @@ $add_question = function () {
 };
 
 $handle_change_question_type = function($val, $i){
-    Log::info($val);
-    Log::info($i);
-}
+    if($val == 'multiple-choice'){
+        $this->form->questions[$i]['option'] = 5;
+    }
+};
+
+$submit = function (){
+    $this->form->store();
+};
 
 ?>
 
@@ -44,35 +52,36 @@ $handle_change_question_type = function($val, $i){
                 <p class="block label text-gray-600  text-sm font-semibold mb-4" >Jenis Soal</p>
                 <div class="flex space-x-9" >
                     <label for="choice_{{ $i }}" class="flex items-center mb-4" >
-                        <input wire:change="handle_change_question_type($event.target.value, {{ $i }})" wire:model="form.due_date_type" value="multiple-choice" name="question_type_{{ $i }}" id="choice_{{ $i }}" type="radio" class="radio">
+                        <input wire:model.live="form.questions.{{ $i }}.type" wire:change="handle_change_question_type($event.target.value, {{ $i }})" value="multiple-choice" name="question_type_{{ $i }}" id="choice_{{ $i }}" type="radio" class="radio">
                         <span class="font-medium text-sm text-grey-700 ml-2" >Pilihan Ganda</span>
                     </label>
                     <label for="option_{{ $i }}" class="flex items-center mb-4" >
-                        <input wire:change="handle_change_question_type($event.target.value, {{ $i }})" wire:model="form.due_date_type" value="option" name="question_type_{{ $i }}" id="option_{{ $i }}" type="radio" class="radio">
+                        <input wire:model.live="form.questions.{{ $i }}.type" wire:change="handle_change_question_type($event.target.value, {{ $i }})" value="option" name="question_type_{{ $i }}" id="option_{{ $i }}" type="radio" class="radio">
                         <span class="font-medium text-sm text-grey-700 ml-2" >Benar / Salah</span>
                     </label>
                     <label for="essay_{{ $i }}" class="flex items-center mb-4" >
-                        <input wire:change="handle_change_question_type($event.target.value, {{ $i }})" wire:model="form.due_date_type" value="essay" name="question_type_{{ $i }}" id="essay_{{ $i }}" type="radio" class="radio">
+                        <input wire:model.live="form.questions.{{ $i }}.type" wire:change="handle_change_question_type($event.target.value, {{ $i }})" value="essay" name="question_type_{{ $i }}" id="essay_{{ $i }}" type="radio" class="radio">
                         <span class="font-medium text-sm text-grey-700 ml-2" >Essay</span>
                     </label>
                 </div>
 
                 <div class="space-y-4" >
                     <label for="description">
-                        <span class="block label text-gray-600 text-[12px] mb-1" >Deskripsi</span>
+                        <span class="block label text-gray-600 text-[12px] mb-1" >Masukkan Soal</span>
                         <div wire:ignore >
-                            <textarea class="selector_{{ $i }}" ></textarea>
+                            <textarea class="question_{{ $i }}" ></textarea>
                         </div>
                         <input type="hidden" name="intro" />
                         @error('form.description')
                             <span class="text-error mt-3 text-sm" >{{ $message }}</span>
                         @enderror
                     </label>
-    
-                    <div class="grid grid-cols-4 space-x-4">
+                    
+                    {{-- @if ($form->questions[$i]['type'] == 'multiple-choice') --}}
+                    {{-- <div class="grid grid-cols-4 space-x-4">
                         <label for="answer_option_count_{{ $i }}" class="" >
                             <span class="block label text-gray-600 text-[12px] mb-1" >Jumlah Opsi Jawaban</span>
-                            <select id="answer_option_count_{{ $i }}" class="text-field" >
+                            <select wire:model.live="form.questions.{{ $i }}.option" id="answer_option_count_{{ $i }}" class="text-field" >
                                 <option value="3" >3</option>
                                 <option value="4" >4</option>
                                 <option selected value="5" >5</option>
@@ -83,6 +92,20 @@ $handle_change_question_type = function($val, $i){
                             <input type="text" id="point_{{ $i }}" placeholder="Masukkan jumlah point"  class="ring-1 text-sm ring-gray-300 py-2 rounded-xl px-3 w-full bg-grey-100 focus-within:ring-primary focus-within:ring-2 transition-all box-border focus:outline-none placeholder:text-grey-400 placeholder:font-medium">
                         </label>
                     </div>
+
+                    <div class="grid grid-cols-2 gap-4">
+                        @for ($n = 0; $n <  $form->questions[$i]['option']; $n++)
+                        <div class="text-field flex items-center gap-x-2" >
+                            <input wire:change="" wire:model="" value="option" name="" id="" type="radio" class="radio m-0">
+                            <span class="font-medium" >
+                                A.
+                            </span>
+                            <input placeholder="Option" type="text" class="text-field-base placeholder:font-medium" >
+                        </div>
+                        @endfor
+                    </div> --}}
+                    {{-- @endif --}}
+
                 </div>
 
             </div>
@@ -93,6 +116,15 @@ $handle_change_question_type = function($val, $i){
             >
                 Tambah Soal
             </x-button>
+
+            <div class="flex justify-end gap-3 mt-4" >
+                <x-button wire:click="submit" type="button" >
+                    Submit
+                </x-button>
+                <x-button @click="$store.alert.cancel = true" variant="outlined" >
+                    Batal
+                </x-button>
+            </div>
         </div>                
     </div>
 
@@ -118,14 +150,45 @@ $handle_change_question_type = function($val, $i){
                 tinymce.init({
                     height: 280,
                     menubar: false,
-                    // selector: '.selector_' + (id-1),
                     selector: 'textarea',
                     plugins: 'anchor autolink charmap codesample emoticons image link lists media searchreplace table visualblocks wordcount',
                     toolbar: 'undo redo | blocks fontfamily fontsize | bold italic underline strikethrough | link image media table | align lineheight | numlist bullist indent outdent | emoticons charmap | removeformat',
+                    file_picker_types: 'file image media',
+                    images_upload_url: '/api/question/image',
+                    file_picker_callback: (cb, value, meta) => {
+                        const input = document.createElement('input');
+                        input.setAttribute('type', 'file');
+                        input.setAttribute('accept', 'image/*');
+
+                        input.addEventListener('change', (e) => {
+                        const file = e.target.files[0];
+
+                        const reader = new FileReader();
+                        reader.addEventListener('load', () => {
+                            /*
+                            Note: Now we need to register the blob in TinyMCEs image blob
+                            registry. In the next release this part hopefully won't be
+                            necessary, as we are looking to handle it internally.
+                            */
+                            const id = 'blobid' + (new Date()).getTime();
+                            const blobCache =  tinymce.activeEditor.editorUpload.blobCache;
+                            const base64 = reader.result.split(',')[1];
+                            const blobInfo = blobCache.create(id, file, base64);
+                            blobCache.add(blobInfo);
+
+                            /* call the callback and populate the Title field with the file name */
+                            cb(blobInfo.blobUri(), { title: file.name });
+                        });
+                        reader.readAsDataURL(file);
+                        });
+
+                        input.click();
+                    },
                     setup: editor => {
                         editor.on('change', e => {
-                            document.querySelector('input[type=hidden]').value = tinymce.activeEditor.getContent()
-                            // $wire.$set('form.description', tinymce.activeEditor.getContent())
+                            const idx = tinymce.activeEditor.targetElm.classList[0].split('_')[1]
+                            console.log(idx)
+                            $wire.$set(`form.questions.${idx}.question`, tinymce.activeEditor.getContent())
                         })
                     }
                 });
@@ -138,10 +201,43 @@ $handle_change_question_type = function($val, $i){
             selector: 'textarea',
             plugins: 'anchor autolink charmap codesample emoticons image link lists media searchreplace table visualblocks wordcount',
             toolbar: 'undo redo | blocks fontfamily fontsize | bold italic underline strikethrough | link image media table | align lineheight | numlist bullist indent outdent | emoticons charmap | removeformat',
+            file_picker_types: 'file image media',
+            images_upload_url: '/api/question/image',
+            file_picker_callback: (cb, value, meta) => {
+                const input = document.createElement('input');
+                input.setAttribute('type', 'file');
+                input.setAttribute('accept', 'image/*');
+
+                input.addEventListener('change', (e) => {
+                const file = e.target.files[0];
+
+                const reader = new FileReader();
+                reader.addEventListener('load', () => {
+                    /*
+                    Note: Now we need to register the blob in TinyMCEs image blob
+                    registry. In the next release this part hopefully won't be
+                    necessary, as we are looking to handle it internally.
+                    */
+                    const id = 'blobid' + (new Date()).getTime();
+                    const blobCache =  tinymce.activeEditor.editorUpload.blobCache;
+                    const base64 = reader.result.split(',')[1];
+                    const blobInfo = blobCache.create(id, file, base64);
+                    blobCache.add(blobInfo);
+
+                    /* call the callback and populate the Title field with the file name */
+                    cb(blobInfo.blobUri(), { title: file.name });
+                });
+                reader.readAsDataURL(file);
+                });
+
+                input.click();
+            },
             setup: editor => {
                 editor.on('change', e => {
-                    document.querySelector('input[type=hidden]').value = tinymce.activeEditor.getContent()
-                    // $wire.$set('form.description', tinymce.activeEditor.getContent())
+                    // document.querySelector('input[type=hidden]').value = tinymce.activeEditor.getContent()
+                    const idx = tinymce.activeEditor.targetElm.classList[0].split('_')[1]
+                    console.log(idx)
+                    $wire.$set(`form.questions.${idx}.question`, tinymce.activeEditor.getContent())
                 })
             }
         });
