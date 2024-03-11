@@ -9,9 +9,17 @@ use Illuminate\Support\Facades\Log;
 class ImageController extends Controller
 {
     public function storeQuestionImage(Request $request){
-        $location = $request->file('file')->store('question-image');
-        return response()->json([
-            'location' => "/storage/$location",
-        ]);
+
+        try {
+            $location = $request->file('file')->store('tinymce-image');
+            return response()->json([
+                'location' => "/storage/$location",
+            ]);
+        } catch (\Throwable $th) {
+            Log::info($th->getMessage());
+            //throw $th;
+            return response()->json(['location' => $th->getMessage()]);
+        }
+
     }
 }

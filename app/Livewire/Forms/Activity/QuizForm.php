@@ -129,7 +129,7 @@ class QuizForm extends Form
                 'show_answers' => $this->show_answers,
                 'shuffle_questions' => $this->shuffle_questions,
                 'question_show_number' => $this->question_show_number,
-                'activity_remember' => $this->activity_remember,
+                'activity_remember' => $this->activity_remember ?? null,
             ]);
 
             $cm = CourseHelper::addCourseModule($this->course->id, $this->module->id, $instance->id);

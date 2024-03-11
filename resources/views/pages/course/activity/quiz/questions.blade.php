@@ -8,16 +8,18 @@ use App\Models\{
     Quiz,
 };
 
-state(['course', 'section', 'quiz', 'questions', 'question_count']);
+state(['course', 'section', 'quiz', 'questions', 'question_count', 'letters']);
 
 form(QuestionForm::class);
 
 mount(function (Course $course,CourseSection $section, Quiz $quiz){
+    $this->letters = ['A', 'B', 'C', 'D', 'E', 'F'];
     $this->course = $course;
     $this->section = $section;
     $this->quiz = $quiz;
     $this->questions = [];
     $this->question_count = 1;
+    $this->form->setModel($quiz);
 });
 
 $add_question = function () {
@@ -29,10 +31,15 @@ $handle_change_question_type = function($val, $i){
     if($val == 'multiple-choice'){
         $this->form->questions[$i]['option'] = 5;
     }
+    $this->dispatch('init-tinymce');
 };
 
 $submit = function (){
-    $this->form->store();
+    try{
+        $this->form->store();
+    } catch (\Throwable $th) {
+        Log::info($th->getMessage());
+    }
 };
 
 ?>
@@ -66,45 +73,92 @@ $submit = function (){
                 </div>
 
                 <div class="space-y-4" >
+
+                    @if (!empty($form->questions[$i]['type']))
                     <label for="description">
                         <span class="block label text-gray-600 text-[12px] mb-1" >Masukkan Soal</span>
                         <div wire:ignore >
                             <textarea class="question_{{ $i }}" ></textarea>
                         </div>
-                        <input type="hidden" name="intro" />
-                        @error('form.description')
-                            <span class="text-error mt-3 text-sm" >{{ $message }}</span>
+                        @error('form.questions.{{ $i }}.question')
+                        <span class="text-error mt-3 text-sm" >{{ $message }}</span>
                         @enderror
                     </label>
-                    
-                    {{-- @if ($form->questions[$i]['type'] == 'multiple-choice') --}}
-                    {{-- <div class="grid grid-cols-4 space-x-4">
+                    @endif
+
+                    @if (isset($form->questions[$i]) &&($form->questions[$i]['type'] == 'multiple-choice'))
+                    <div class="grid grid-cols-4 space-x-4">
                         <label for="answer_option_count_{{ $i }}" class="" >
                             <span class="block label text-gray-600 text-[12px] mb-1" >Jumlah Opsi Jawaban</span>
                             <select wire:model.live="form.questions.{{ $i }}.option" id="answer_option_count_{{ $i }}" class="text-field" >
                                 <option value="3" >3</option>
                                 <option value="4" >4</option>
-                                <option selected value="5" >5</option>
+                                <option value="5" >5</option>
                             </select>
                         </label>
                         <label for="point_{{ $i }}" class="" >
                             <span class="block label text-gray-600 text-[12px] mb-1" >Jumlah Point</span>
-                            <input type="text" id="point_{{ $i }}" placeholder="Masukkan jumlah point"  class="ring-1 text-sm ring-gray-300 py-2 rounded-xl px-3 w-full bg-grey-100 focus-within:ring-primary focus-within:ring-2 transition-all box-border focus:outline-none placeholder:text-grey-400 placeholder:font-medium">
+                            <input wire:model.live="form.questions.{{ $i }}.point" type="number" id="point_{{ $i }}" placeholder="Masukkan jumlah point"  class="ring-1 text-sm ring-gray-300 py-2 rounded-xl px-3 w-full bg-grey-100 focus-within:ring-primary focus-within:ring-2 transition-all box-border focus:outline-none placeholder:text-grey-400 placeholder:font-medium">
+                            @error('form.questions.{{ $i }}.point')
+                            <span class="text-error mt-3 text-sm" >{{ $message ?? 's' }}</span>
+                            @enderror
                         </label>
                     </div>
 
-                    <div class="grid grid-cols-2 gap-4">
+                    <div class="grid grid-cols-2 gap-4 grid-flow-row">
                         @for ($n = 0; $n <  $form->questions[$i]['option']; $n++)
                         <div class="text-field flex items-center gap-x-2" >
-                            <input wire:change="" wire:model="" value="option" name="" id="" type="radio" class="radio m-0">
+                            <input wire:change="" wire:model="form.questions.{{ $i }}.answers.{{ $n }}.is_true" value="1" name="question_{{ $i }}_answer" id="" type="radio" class="radio m-0">
                             <span class="font-medium" >
-                                A.
+                                {{ $letters[$n] }}.
                             </span>
-                            <input placeholder="Option" type="text" class="text-field-base placeholder:font-medium" >
+                            <input wire:model="form.questions.{{ $i }}.answers.{{ $n }}.answer" placeholder="Option" type="text" class="text-field-base placeholder:font-medium w-full" >
                         </div>
                         @endfor
-                    </div> --}}
-                    {{-- @endif --}}
+                    </div>
+                    @endif
+
+                    @if (isset($form->questions[$i]) &&($form->questions[$i]['type'] == 'option'))
+                    <div class="grid grid-cols-2 space-x-4">
+                        <label for="point_{{ $i }}" class="" >
+                            <span class="block label text-gray-600 text-[12px] mb-1" >Jumlah Point</span>
+                            <input wire:model.live="form.questions.{{ $i }}.point" type="number" id="point_{{ $i }}" placeholder="Masukkan jumlah point"  class="ring-1 text-sm ring-gray-300 py-2 rounded-xl px-3 w-full bg-grey-100 focus-within:ring-primary focus-within:ring-2 transition-all box-border focus:outline-none placeholder:text-grey-400 placeholder:font-medium">
+                            @error('form.questions.{{ $i }}.point')
+                            <span class="text-error mt-3 text-sm" >{{ $message ?? 's' }}</span>
+                            @enderror
+                        </label>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-4 grid-flow-row">
+                        <div class="text-field flex items-center gap-x-2" >
+                            <input wire:change="" wire:model="form.questions.{{ $i }}.answers.0.is_true" value="1" name="question_{{ $i }}_answer" id="" type="radio" class="radio m-0">
+                            <input wire:model="form.questions.{{ $i }}.answers.0.answer" placeholder="Option" type="text" class="text-field-base placeholder:font-medium w-full" >
+                        </div>
+                        <div class="text-field flex items-center gap-x-2" >
+                            <input wire:change="" wire:model="form.questions.{{ $i }}.answers.1.is_true" value="1" name="question_{{ $i }}_answer" id="" type="radio" class="radio m-0">
+                            <input wire:model="form.questions.{{ $i }}.answers.1.answer" placeholder="Option" type="text" class="text-field-base placeholder:font-medium w-full" >
+                        </div>
+                    </div>
+                    @endif
+
+                    @if (isset($form->questions[$i]) &&($form->questions[$i]['type'] == 'essay'))
+                    <div class="grid grid-cols-2 space-x-4">
+                        <label for="point_{{ $i }}" class="" >
+                            <span class="block label text-gray-600 text-[12px] mb-1" >Jumlah Point</span>
+                            <input wire:model.live="form.questions.{{ $i }}.point" type="number" id="point_{{ $i }}" placeholder="Masukkan jumlah point"  class="ring-1 text-sm ring-gray-300 py-2 rounded-xl px-3 w-full bg-grey-100 focus-within:ring-primary focus-within:ring-2 transition-all box-border focus:outline-none placeholder:text-grey-400 placeholder:font-medium">
+                            @error('form.questions.{{ $i }}.point')
+                            <span class="text-error mt-3 text-sm" >{{ $message ?? 's' }}</span>
+                            @enderror
+                        </label>
+                    </div>
+
+                    <label for="description" class="block mt-6" >
+                        <span class="block label text-gray-600 text-[12px] mb-1" >Masukkan Jawaban</span>
+                        <div wire:ignore >
+                            <textarea class="answer_{{ $i }}" ></textarea>
+                        </div>
+                    </label>
+                    @endif
 
                 </div>
 
@@ -144,8 +198,7 @@ $submit = function (){
             }
         }))
 
-        Livewire.on('add-question', ([ id ]) => {
-            console.log(id)
+        $wire.$on('init-tinymce', () => {
             setTimeout(() => {
                 tinymce.init({
                     height: 280,
@@ -155,92 +208,23 @@ $submit = function (){
                     toolbar: 'undo redo | blocks fontfamily fontsize | bold italic underline strikethrough | link image media table | align lineheight | numlist bullist indent outdent | emoticons charmap | removeformat',
                     file_picker_types: 'file image media',
                     images_upload_url: '/api/question/image',
-                    file_picker_callback: (cb, value, meta) => {
-                        const input = document.createElement('input');
-                        input.setAttribute('type', 'file');
-                        input.setAttribute('accept', 'image/*');
-
-                        input.addEventListener('change', (e) => {
-                        const file = e.target.files[0];
-
-                        const reader = new FileReader();
-                        reader.addEventListener('load', () => {
-                            /*
-                            Note: Now we need to register the blob in TinyMCEs image blob
-                            registry. In the next release this part hopefully won't be
-                            necessary, as we are looking to handle it internally.
-                            */
-                            const id = 'blobid' + (new Date()).getTime();
-                            const blobCache =  tinymce.activeEditor.editorUpload.blobCache;
-                            const base64 = reader.result.split(',')[1];
-                            const blobInfo = blobCache.create(id, file, base64);
-                            blobCache.add(blobInfo);
-
-                            /* call the callback and populate the Title field with the file name */
-                            cb(blobInfo.blobUri(), { title: file.name });
-                        });
-                        reader.readAsDataURL(file);
-                        });
-
-                        input.click();
-                    },
                     setup: editor => {
                         editor.on('change', e => {
-                            const idx = tinymce.activeEditor.targetElm.classList[0].split('_')[1]
-                            console.log(idx)
-                            $wire.$set(`form.questions.${idx}.question`, tinymce.activeEditor.getContent())
+
+                            if(tinymce.activeEditor.targetElm.classList[0].includes('question')){
+                                const idx = tinymce.activeEditor.targetElm.classList[0].split('_')[1]
+                                $wire.$set(`form.questions.${idx}.question`, tinymce.activeEditor.getContent())
+                            } else {
+                                const idx = tinymce.activeEditor.targetElm.classList[0].split('_')[1]
+                                $wire.$set(`form.questions.${idx}.answers.0.answer`, tinymce.activeEditor.getContent())
+                                $wire.$set(`form.questions.${idx}.answers.0.is_true`, 1)
+                            }
+
                         })
                     }
                 });
             }, 10);
         })
-
-        tinymce.init({
-            height: 280,
-            menubar: false,
-            selector: 'textarea',
-            plugins: 'anchor autolink charmap codesample emoticons image link lists media searchreplace table visualblocks wordcount',
-            toolbar: 'undo redo | blocks fontfamily fontsize | bold italic underline strikethrough | link image media table | align lineheight | numlist bullist indent outdent | emoticons charmap | removeformat',
-            file_picker_types: 'file image media',
-            images_upload_url: '/api/question/image',
-            file_picker_callback: (cb, value, meta) => {
-                const input = document.createElement('input');
-                input.setAttribute('type', 'file');
-                input.setAttribute('accept', 'image/*');
-
-                input.addEventListener('change', (e) => {
-                const file = e.target.files[0];
-
-                const reader = new FileReader();
-                reader.addEventListener('load', () => {
-                    /*
-                    Note: Now we need to register the blob in TinyMCEs image blob
-                    registry. In the next release this part hopefully won't be
-                    necessary, as we are looking to handle it internally.
-                    */
-                    const id = 'blobid' + (new Date()).getTime();
-                    const blobCache =  tinymce.activeEditor.editorUpload.blobCache;
-                    const base64 = reader.result.split(',')[1];
-                    const blobInfo = blobCache.create(id, file, base64);
-                    blobCache.add(blobInfo);
-
-                    /* call the callback and populate the Title field with the file name */
-                    cb(blobInfo.blobUri(), { title: file.name });
-                });
-                reader.readAsDataURL(file);
-                });
-
-                input.click();
-            },
-            setup: editor => {
-                editor.on('change', e => {
-                    // document.querySelector('input[type=hidden]').value = tinymce.activeEditor.getContent()
-                    const idx = tinymce.activeEditor.targetElm.classList[0].split('_')[1]
-                    console.log(idx)
-                    $wire.$set(`form.questions.${idx}.question`, tinymce.activeEditor.getContent())
-                })
-            }
-        });
 
     </script>
     @endscript
