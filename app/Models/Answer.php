@@ -11,5 +11,4 @@ class Answer extends Model
 
     protected $guarded = ['id'];
 
-    
 }

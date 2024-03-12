@@ -18,8 +18,9 @@ mount(function (Course $course,CourseSection $section, Quiz $quiz){
     $this->section = $section;
     $this->quiz = $quiz;
     $this->questions = [];
-    $this->question_count = 1;
+    $this->question_count = $quiz->questions->count() == 0 ? 1 : $quiz->questions->count();
     $this->form->setModel($quiz);
+    $this->dispatch('init-tinymce');
 });
 
 $add_question = function () {
@@ -27,9 +28,20 @@ $add_question = function () {
     $this->dispatch('add-question');
 };
 
+$change_multiple_choice_value = function ($i, $n){
+    for ($j= 0; $j < $this->form->questions[$i]['option']; $j++) { 
+        $this->form->questions[$i]['answers'][$j]['is_true'] = $j == $n ? 1 : 0;
+    }
+};
+
 $handle_change_question_type = function($val, $i){
     if($val == 'multiple-choice'){
         $this->form->questions[$i]['option'] = 5;
+        $this->form->questions[$i]['answers'] = [];
+    }
+    if($val == 'option'){
+        $this->form->questions[$i]['option'] = 2;
+        $this->form->questions[$i]['answers'] = [];
     }
     $this->dispatch('init-tinymce');
 };
@@ -37,6 +49,7 @@ $handle_change_question_type = function($val, $i){
 $submit = function (){
     try{
         $this->form->store();
+        $this->redirect("/course/{$this->course->shortname}/activity/update/quiz/instance/{$this->quiz->id}/section/{$this->section->section}", navigate: true);
     } catch (\Throwable $th) {
         Log::info($th->getMessage());
     }
@@ -78,7 +91,7 @@ $submit = function (){
                     <label for="description">
                         <span class="block label text-gray-600 text-[12px] mb-1" >Masukkan Soal</span>
                         <div wire:ignore >
-                            <textarea class="question_{{ $i }}" ></textarea>
+                            <textarea class="question_{{ $i }}" >{{ $form->questions[$i]['question'] }}</textarea>
                         </div>
                         @error('form.questions.{{ $i }}.question')
                         <span class="text-error mt-3 text-sm" >{{ $message }}</span>
@@ -108,11 +121,11 @@ $submit = function (){
                     <div class="grid grid-cols-2 gap-4 grid-flow-row">
                         @for ($n = 0; $n <  $form->questions[$i]['option']; $n++)
                         <div class="text-field flex items-center gap-x-2" >
-                            <input wire:change="" wire:model="form.questions.{{ $i }}.answers.{{ $n }}.is_true" value="1" name="question_{{ $i }}_answer" id="" type="radio" class="radio m-0">
+                            <input wire:change="change_multiple_choice_value('{{ $i }}', '{{ $n }}')" wire:model="form.questions.{{ $i }}.answers.{{ $n }}.is_true" value="1" name="question_{{ $i }}_answer" id="" type="radio" class="radio m-0">
                             <span class="font-medium" >
                                 {{ $letters[$n] }}.
                             </span>
-                            <input wire:model="form.questions.{{ $i }}.answers.{{ $n }}.answer" placeholder="Option" type="text" class="text-field-base placeholder:font-medium w-full" >
+                            <input wire:model.live="form.questions.{{ $i }}.answers.{{ $n }}.answer" placeholder="Option" type="text" class="text-field-base placeholder:font-medium w-full" >
                         </div>
                         @endfor
                     </div>
@@ -131,11 +144,11 @@ $submit = function (){
 
                     <div class="grid grid-cols-2 gap-4 grid-flow-row">
                         <div class="text-field flex items-center gap-x-2" >
-                            <input wire:change="" wire:model="form.questions.{{ $i }}.answers.0.is_true" value="1" name="question_{{ $i }}_answer" id="" type="radio" class="radio m-0">
+                            <input wire:change="change_multiple_choice_value('{{ $i }}', 0)" wire:model="form.questions.{{ $i }}.answers.0.is_true" value="1" name="question_{{ $i }}_answer" id="" type="radio" class="radio m-0">
                             <input wire:model="form.questions.{{ $i }}.answers.0.answer" placeholder="Option" type="text" class="text-field-base placeholder:font-medium w-full" >
                         </div>
                         <div class="text-field flex items-center gap-x-2" >
-                            <input wire:change="" wire:model="form.questions.{{ $i }}.answers.1.is_true" value="1" name="question_{{ $i }}_answer" id="" type="radio" class="radio m-0">
+                            <input wire:change="change_multiple_choice_value('{{ $i }}', 1)" wire:model="form.questions.{{ $i }}.answers.1.is_true" value="1" name="question_{{ $i }}_answer" id="" type="radio" class="radio m-0">
                             <input wire:model="form.questions.{{ $i }}.answers.1.answer" placeholder="Option" type="text" class="text-field-base placeholder:font-medium w-full" >
                         </div>
                     </div>
@@ -155,7 +168,7 @@ $submit = function (){
                     <label for="description" class="block mt-6" >
                         <span class="block label text-gray-600 text-[12px] mb-1" >Masukkan Jawaban</span>
                         <div wire:ignore >
-                            <textarea class="answer_{{ $i }}" ></textarea>
+                            <textarea class="answer_{{ $i }}" >{{ $form->questions[$i]['answers'][0]['answer'] }}</textarea>
                         </div>
                     </label>
                     @endif
@@ -172,7 +185,7 @@ $submit = function (){
             </x-button>
 
             <div class="flex justify-end gap-3 mt-4" >
-                <x-button wire:click="submit" type="button" >
+                <x-button @click="$store.alert.save = true" type="button" >
                     Submit
                 </x-button>
                 <x-button @click="$store.alert.cancel = true" variant="outlined" >
@@ -180,6 +193,24 @@ $submit = function (){
                 </x-button>
             </div>
         </div>                
+
+        <x-alert
+            show="$store.alert.cancel"
+            onCancel="$store.alert.cancel = false"
+            type="warning"
+            title="Batal"
+            message="Batalkan pembuatan aktivitas ?"
+        />
+        
+        <x-alert
+            show="$store.alert.save"
+            onCancel="$store.alert.save = false"
+            type="success"
+            title="Batal"
+            message="Simpan soal ?"
+            onOk="$wire.submit()"
+        />
+
     </div>
 
     @script

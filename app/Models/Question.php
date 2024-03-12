@@ -12,7 +12,7 @@ class Question extends Model
     protected $guarded = ['id'];
 
     public function answers(){
-        return $this->hasMany(Answer::class, 'question_id');
+        return $this->hasMany(Answer::class);
     }
 
 }

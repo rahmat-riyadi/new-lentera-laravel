@@ -18,21 +18,31 @@ class QuestionForm extends Form
     public function store(){
 
         $questionIds = [];
+        
+        // Log::info(json_decode($this->questions));
+        // return;
 
         DB::beginTransaction();
 
         try {
             foreach($this->questions as $question){
-                $instance = Question::create([
-                    'user_id' => auth()->user()->id,
-                    'type' => $question['type'],
-                    'question' => $question['question'],
-                    'type' => $question['type'],
-                    'point' => $question['point'] ?? 0,
-                    'option' => count($question['answers']),
-                ]);
+                $instance = Question::updateOrCreate(
+                    [
+                        'id' => $question['id']
+                    ],
+                    [
+                        'user_id' => auth()->user()->id,
+                        'type' => $question['type'],
+                        'question' => $question['question'],
+                        'type' => $question['type'],
+                        'point' => $question['point'] ?? 0,
+                        'option' => count($question['answers']),
+                    ]   
+                );
 
                 $questionIds[] = $instance->id;
+
+                $instance->answers()->delete();
     
                 foreach($question['answers'] as $answer){
                     $instance->answers()->create([
@@ -55,6 +65,25 @@ class QuestionForm extends Form
 
     public function setModel(Quiz $quiz){
         $this->quiz = $quiz;
+        $questions = $quiz->questions->map(function($e){
+            return [
+                'id' => $e->id,
+                'question' => $e->question,
+                'type' => $e->type,
+                'point' => $e->point,
+                'option' => $e->option,
+                'answers' => $e->answers->map(function($a){
+                    return [
+                        'id' => $a->id,
+                        'answer' => $a->answer,
+                        'is_true' => $a->is_true,
+                    ];
+                })->toArray()
+            ];
+        });
+        $this->questions = $questions->toArray();
+        Log::info(json_decode($questions));
+
     }
 
 }

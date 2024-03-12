@@ -41,6 +41,7 @@ $get_sections = function ($course){
 
             $courseModules = CourseModule::whereIn('id', $cmids)
             ->where('deletioninprogress', 0)
+            ->where('course', $course->id)
             ->get();
 
             foreach($courseModules as $cm){
@@ -74,8 +75,6 @@ $get_sections = function ($course){
                         # code...
                         break;
                 }
-
-                Log::alert($mod_table);
 
                 $instance = DB::table($mod_table)
                 ->where('id', $cm->instance)
@@ -217,7 +216,13 @@ on(['delete-module' => 'delete_activity']);
             @foreach ($sections as $i => $section)
             <div class="bg-white px-8 py-5 rounded-xl mb-3" >
                 <div class="flex">
-                    <p class="font-semibold text-lg mr-1" >{{ $section->name }} </p>
+                    <p class="font-semibold text-lg mr-1" >
+                        @if (empty($section->name))
+                        {{ $i == 0 ? 'General' : 'Topic '. $i }} 
+                        @else
+                        {{ $section->name  }}
+                        @endif
+                    </p>
                     <button @click="topic.edit(@js($section->id),@js($section->name))" >
                         <img src="{{ asset('assets/icons/edit-2.svg') }}" alt="">
                     </button>

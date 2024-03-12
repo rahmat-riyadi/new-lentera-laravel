@@ -124,11 +124,11 @@ class QuizForm extends Form
                 'start_date' => $start_date,
                 'due_date' => $due_date,
                 'pass_grade' => $this->pass_grade,
-                'answer_attempt' => $this->answer_attempt,
-                'show_grade' => $this->show_grade,
-                'show_answers' => $this->show_answers,
-                'shuffle_questions' => $this->shuffle_questions,
-                'question_show_number' => $this->question_show_number,
+                'answer_attempt' => $this->answer_attempt ?? 0,
+                'show_grade' => $this->show_grade ?? 0,
+                'show_answers' => $this->show_answers ?? 0,
+                'shuffle_questions' => $this->shuffle_questions ?? 0,
+                'question_show_number' => $this->question_show_number ?? 5,
                 'activity_remember' => $this->activity_remember ?? null,
             ]);
 
