@@ -17,6 +17,10 @@ class Course extends Model
 
     public $timestamps = false;
 
+    public function categoryInfo(){
+        return $this->belongsTo(CourseCategory::class, 'category');
+    }
+
     public function section(){
         return $this->hasMany(CourseSection::class, 'course');
     }

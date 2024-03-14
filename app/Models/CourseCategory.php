@@ -5,15 +5,15 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
-class Resource extends Model
+class CourseCategory extends Model
 {
     use HasFactory;
 
-    protected $table = 'resource';
+    protected $connection = 'moodle_mysql';
+
+    protected $table = 'mdl_course_categories';
 
     protected $guarded = ['id'];
 
-    public function files(){
-        return $this->hasOne(ResourceFile::class);
-    }
+    public $timestamps = false;
 }

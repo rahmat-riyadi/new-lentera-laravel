@@ -8,6 +8,7 @@ use App\Models\Course;
 use App\Models\Module;
 use App\Models\Role;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Livewire\Attributes\Rule;
 use Livewire\Form;
 
@@ -61,15 +62,17 @@ class AttendanceForm extends Form
 
         DB::beginTransaction();
 
+        Log::info($this->all());
+
         try {
 
             $instance = Attendance::create([
                 'course_id' => $this->course->id,
                 'name' => $this->name,
                 'description' => $this->description,
-                'date' => $this->date,
                 'starttime' => $this->starttime,
                 'endtime' => $this->endtime,
+                'date' => $this->date,
                 'is_repeat' => isset($this->is_repeat),
                 'repeat_attempt' => $this->repeat_attempt ?? 0,
                 'filled_by' => $this->filled_by,

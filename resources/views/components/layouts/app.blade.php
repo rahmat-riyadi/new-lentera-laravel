@@ -4,7 +4,6 @@
         <meta charset="utf-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <title>{{ $title ?? 'Page Title' }}</title>
-        <link data-navigate-once="true" rel="stylesheet" type="text/css" href="https://cdn.jsdelivr.net/npm/toastify-js/src/toastify.min.css">
         <script defer src="https://cdn.jsdelivr.net/npm/@alpinejs/mask@3.x.x/dist/cdn.min.js"></script>
         <script src="https://cdn.tiny.cloud/1/mfwsl4xdczczqoigmfie0vd3tce8jna9eg7g5sq74qglzaz4/tinymce/6/tinymce.min.js" referrerpolicy="origin"></script>
         @include('partials.fontface')
@@ -21,32 +20,25 @@
             </div>
         </div>
 
-        <script src="https://code.jquery.com/jquery-3.7.1.min.js" integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo=" crossorigin="anonymous"></script>
-        <script data-navigate-once="true" type="text/javascript" src="https://cdn.jsdelivr.net/npm/toastify-js"></script>
-        <script data-navigate-once="true" >
-            function toast(type, message){
-                return Toastify({
-                    escapeMarkup: false,
-                    position : 'right',
-                    text:  `
-                        <div class="flex " >
-                            <div style="height: 60px; width: 5px;" class="${type == 'success' ? 'bg-primary' : 'bg-error'} rounded mr-4" ></div>
-                            <div class="flex flex-col" >
-                                <b style="color: ${type == 'success' ? '#36B37E' : '#FF5630'} ;" class="mb-[3px] mt-[6px]" >${type == 'success' ? 'Berhasil' : 'Gagal'}</b>
-                                <p style="color: #121212; font-size: 12px;" class="m-0 font-medium text-grey-600" >${message}</p>
-                            </div>
-                        </div>
-                    `,
-                    style: {
-                        background: '#fff',
-                        fontSize: '14px',
-                        padding: '12px',
-                        width: '250px',
-                        borderRadius: '4px'
-                    }
-                }).showToast();
-            }
+        @persist('loader')
+        <div class="page-loader transition-all duration-[1s]">
+            <div>
+                <svg class="fill-primary w-16 "  viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><style>.spinner_9y7u{animation:spinner_fUkk 2.4s linear infinite;animation-delay:-2.4s}.spinner_DF2s{animation-delay:-1.6s}.spinner_q27e{animation-delay:-.8s}@keyframes spinner_fUkk{8.33%{x:13px;y:1px}25%{x:13px;y:1px}33.3%{x:13px;y:13px}50%{x:13px;y:13px}58.33%{x:1px;y:13px}75%{x:1px;y:13px}83.33%{x:1px;y:1px}}</style><rect class="spinner_9y7u" x="1" y="1" rx="1" width="10" height="10"/><rect class="spinner_9y7u spinner_DF2s" x="1" y="1" rx="1" width="10" height="10"/><rect class="spinner_9y7u spinner_q27e" x="1" y="1" rx="1" width="10" height="10"/></svg>
+                <span class="mt-2 block animate-pulse"  >loading...</span>
+            </div>
+        </div>
+
+        <script >
+            window.addEventListener('load', () => {
+                const loader = document.querySelector('.page-loader')
+                loader.classList.add('!opacity-0')
+                loader.addEventListener('transitionend', () => {
+                    loader.remove()
+                })
+            })
         </script>
+        @endpersist
+        <script src="https://code.jquery.com/jquery-3.7.1.min.js" integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo=" crossorigin="anonymous"></script>
         @stack('script')
     </body>
 </html>

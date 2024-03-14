@@ -49,8 +49,9 @@ mount(function() {
   />
   <div class="px-3 grow flex flex-col pb-3">
     <a 
-        class="flex items-center {{ Route::currentRouteName() == 'home' ? 'bg-primary-light' : 'bg-white' }} w-full py-[15px] pl-4 rounded-xl transition-all group"
-        href="/"
+      wire:navigate.hover
+      class="flex items-center {{ Route::currentRouteName() == 'home' ? 'bg-primary-light' : 'bg-white' }} w-full py-[15px] pl-4 rounded-xl transition-all group"
+      href="/"
     >
     <x-icons.home
         class="{{ Route::currentRouteName() == 'home' ? 'fill-primary-dark' : 'fill-grey-600' }} transition-all w-5 group-hover:fill-primary-dark"

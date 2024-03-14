@@ -4,7 +4,7 @@ use App\Http\Controllers\ActivityController;
 use App\Http\Controllers\CourseController;
 use App\Http\Controllers\Teacher\AttendanceController;
 use App\Http\Controllers\Teacher\QuizController;
-use App\Models\Role;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -17,6 +17,11 @@ use Illuminate\Support\Facades\Route;
 | be assigned to the "web" middleware group. Make something great!
 |
 */
+
+Route::get('/logout', function(){
+    Auth::logout();
+    return redirect('/login');
+})->middleware('auth');
 
 Route::get('/login', function(){
     return view('pages.login');

@@ -10,12 +10,23 @@ use App\Models\{
     Url,
     Resource,
     Assign,
+    Context,
 };
 state([
-    'sections', 'course', 'topic',
+    'sections', 'course', 'topic', 'role'
 ]);
 
 mount(function(Course $course){
+    $ctx = Context::where('contextlevel', 50)->where('instanceid', 4)->first();
+    $data = DB::connection('moodle_mysql')->table('mdl_role_assignments as ra')
+    ->join('mdl_role as r', 'r.id', '=', 'ra.roleid')
+    ->where('ra.contextid', $ctx->id)
+    ->where('ra.userid', auth()->user()->id)
+    ->select(
+        'r.shortname as role',
+    )
+    ->first();
+    $this->role = $data->role;
     $this->topic = new stdClass();
     $this->get_sections($course);
     $this->course = $course;
@@ -76,13 +87,28 @@ $get_sections = function ($course){
                         break;
                 }
 
+                if($selectedModule->name == 'url'){
+                    $fields = ['id', 'name', 'description', 'url'];
+                } else {
+                    $fields = ['id', 'name', 'description'];
+                }
+
                 $instance = DB::table($mod_table)
                 ->where('id', $cm->instance)
-                ->first(['id', 'name', 'description']);
+                ->first($fields);
 
                 $module->name = $instance->name ?? '';
                 $module->description = $instance->description ?? '';
                 $module->modname = $selectedModule->name;
+
+                if($selectedModule->name == 'url'){
+                    $module->url = $instance->url;   
+                }
+
+                if($selectedModule->name == 'resource'){
+                    $file = DB::table('resource_files')->where('resource_id', $instance->id)->first('file');
+                    $module->file = url('storage/'.$file->file);   
+                }
 
                 $section->modules[] = $module;
             }
@@ -149,6 +175,7 @@ on(['delete-module' => 'delete_activity']);
             <h1 class="text-[#121212] text-2xl font-semibold mt-8" >{{ $course->fullname }} - Kelas A</h1>
             <div class="flex items-center mt-3" >
                 <p class="text-lg" >Teknik Informatika</p>
+                @if ($role != 'student')
                 <x-button 
                     class="ml-auto"
                     wire:click="add_section"
@@ -158,6 +185,7 @@ on(['delete-module' => 'delete_activity']);
                     </svg>
                     <span>Tambah Pertemuan</span>
                 </x-button>
+                @endif
                 {{-- <button class="btn-icon-light ml-3 hidden md:flex" >
                     <VerticalMoreSvg/>
                 </button> --}}
@@ -223,6 +251,7 @@ on(['delete-module' => 'delete_activity']);
                         {{ $section->name  }}
                         @endif
                     </p>
+                    @if ($role != 'student')
                     <button @click="topic.edit(@js($section->id),@js($section->name))" >
                         <img src="{{ asset('assets/icons/edit-2.svg') }}" alt="">
                     </button>
@@ -248,6 +277,7 @@ on(['delete-module' => 'delete_activity']);
                             </li>
                         </ul>
                     </div>
+                    @endif
                 </div>
                 @foreach ($section->modules as $mod_idx => $module)
                 @php
@@ -277,13 +307,27 @@ on(['delete-module' => 'delete_activity']);
                 <div class="flex border hover:bg-grey-100 items-center border-grey-300 p-5 rounded-xl mt-5" >
                     <img src="{{ $icon }}" class="mr-3 w-10" alt="">
                     <div>
-                        <a wire:navigate href="{{ $detail_url }}" class="text-sm font-semibold mb-1" >
-                            {{ $module->name }}
-                        </a>
+                        @switch($module->modname)
+                            @case('url')
+                                <a target="blank" href="{{ $module->url }}" class="text-sm font-semibold mb-1" >
+                                    {{ $module->name }}
+                                </a>
+                                @break
+                            @case('resource')
+                                <a target="blank" href="{{ $module->file }}" class="text-sm font-semibold mb-1" >
+                                    {{ $module->name }}
+                                </a>
+                                @break
+                            @default
+                            <a wire:navigate href="{{ $detail_url }}" class="text-sm font-semibold mb-1" >
+                                {{ $module->name }}
+                            </a>
+                        @endswitch
                         <div class="text-sm" >
                             {!! $module->description !!}
                         </div>
                     </div>
+                    @if ($role != 'student')
                     <div class="relative ml-auto">
                         <button type="button" @click="toggleDropdownModule({{ $module->id }})" class="w-8 h-8 ml-auto" >
                             <x-icons.more-svg class="fill-primary" />
@@ -305,6 +349,7 @@ on(['delete-module' => 'delete_activity']);
                             </li>
                         </ul>
                     </div>
+                    @endif
                 </div>
                 @endforeach
             </div>
@@ -386,6 +431,8 @@ on(['delete-module' => 'delete_activity']);
 
         </x-modal>
 
+        <x-toast/>
+
     </div>
 
     @script
@@ -453,11 +500,21 @@ on(['delete-module' => 'delete_activity']);
         })
 
         Livewire.on('notify', ([ type, message ]) => {
-            toast(type, message)
+            Alpine.store('toast').show = true
+            Alpine.store('toast').type = type
+            Alpine.store('toast').message = message
+            setTimeout(() => {
+                Alpine.store('toast').show = false
+            }, 2000);
         })
 
         Livewire.on('section-deleted-notify', ([ type, message ]) => {
-            toast(type, message)
+            Alpine.store('toast').show = true
+            Alpine.store('toast').type = type
+            Alpine.store('toast').message = message
+            setTimeout(() => {
+                Alpine.store('toast').show = false
+            }, 2000);
         })
         
     </script>

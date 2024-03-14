@@ -7,7 +7,7 @@
           <x-icons.more-svg class="fill-[#374957]" />
         </button>
       </div>
-      <a href="/course/{{ $course_id ??  "" }}" class="body-2 font-semibold mb-[14px] -mt-[2px] hover:text-secodary cursor-pointer" >{{ $course_title ?? '' }}</a>
+      <a href="/course/{{ $course_id ??  "" }}" class="body-2 font-semibold mb-[14px] -mt-[2px] hover:text-secodary cursor-pointer" >{{ $course  }}</a>
       <div class="flex justify-between items-center mb-1" >
         <p class="text-[11px] font-normal">Progres Kelas</p>
         <p class="text-[12px] font-semibold">{{ $progress ?? 0 }}%</p>
