@@ -14,4 +14,5 @@ class Assignment extends Model
     public function configs(){
         return $this->hasMany(AssignmentConfig::class);
     }
+
 }

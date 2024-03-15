@@ -192,7 +192,7 @@ $submit_attendance = function (){
                 @if ($attendance->filled_by == 'Student' && $endtime->gt($now) && $starttime->lt($now) )
                 <div class="h-5" ></div>
                 <button type="button" @click="modal.student_attendance = true" class="btn-medium btn-outlined" >
-                    Lakukan Kehadiran
+                    Ajukan Kehadiran
                 </button>
                 @endif
             </div>

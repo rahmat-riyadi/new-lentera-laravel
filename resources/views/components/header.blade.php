@@ -12,7 +12,7 @@ state([
 @volt
 <div>
     <div class="flex pl-3 bg-white justify-end py-[9px] md:pr-8" style="box-shadow: 0px 1px 2px 0px rgba(16, 24, 40, 0.10);" >
-        <button on:click={toggle} class="mr-auto block md:hidden" >
+        <button @click="$store.sidebar.show = true" class="mr-auto block md:hidden" >
             <img class="select-none" src="{{ asset('assets/icons/menu.svg') }}" alt="">
         </button>
         <button>

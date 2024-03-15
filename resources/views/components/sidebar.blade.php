@@ -38,10 +38,14 @@ mount(function() {
     flex-col
     side-bar-shadow
     md:translate-x-0
+    -translate-x-full
     duration-300
     transition-all
+    ease-in-out
   "
+  :class="{ 'translate-x-0' : $store.sidebar.show }"
 >
+
   <img
     src="{{ asset('assets/images/sidebar_logo.svg') }}"
     class="mb-10 ml-3 object-center w-[225px]"
@@ -113,5 +117,6 @@ mount(function() {
       >
     </a>
   </div>
+
 </div>
 @endvolt

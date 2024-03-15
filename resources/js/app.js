@@ -5,3 +5,7 @@ Alpine.store('toast', {
     type: 'success',
     message: ''
 })
+
+Alpine.store('sidebar', {
+    show: false,
+})

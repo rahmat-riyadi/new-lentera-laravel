@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Teacher;
 
 use App\Http\Controllers\Controller;
+use App\Models\Assignment;
 use App\Models\Attendance;
 use App\Models\Course;
 use App\Models\CourseModule;
@@ -32,4 +33,5 @@ class AttendanceController extends Controller
             )
         );
     }
+
 }

@@ -9,7 +9,7 @@
         @include('partials.fontface')
         @vite(['resources/css/app.css', 'resources/js/app.js'])
     </head>
-    <body>
+    <body x-data :class="{ 'overflow-hidden': $store.sidebar.show }" >
         <div class="w-full h-full md:h-screen flex scroll-smooth bg-[#F9FAFB]" >
             <x-sidebar/>
             <div class="grow flex flex-col" >
@@ -18,6 +18,15 @@
                     {{ $slot }}
                 </div>
             </div>
+        </div>
+
+        <div    
+            x-data
+            class="backdrop absolute bg-black/40 inset-0 z-[9] duration-300 ease-in-out"
+            x-show="$store.sidebar.show"
+            @click="$store.sidebar.show = false"
+        >
+
         </div>
 
         @persist('loader')

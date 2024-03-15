@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\ActivityController;
 use App\Http\Controllers\CourseController;
+use App\Http\Controllers\Teacher\AssignmentController;
 use App\Http\Controllers\Teacher\AttendanceController;
 use App\Http\Controllers\Teacher\QuizController;
 use Illuminate\Support\Facades\Auth;
@@ -47,7 +48,18 @@ Route::group(['prefix' => 'teacher'], function(){
         Route::get('form/{attendance}', [AttendanceController::class, 'form']);
     });
 
+    Route::group(['prefix' => 'assignment'], function(){
+        Route::get('{assignment}/grade/{assignmentSubmission}', [AssignmentController::class, 'grade']);
+    });
+
     Route::group(['prefix' => 'quiz'], function(){
         Route::get('{quiz}/questions/create', [QuizController::class, 'createQuestion']);
     });
+})->middleware('auth');
+
+Route::group(['prefix' => 'student'], function(){
+    Route::group(['prefix' => 'assignment'], function(){
+        Route::get('{assignment}/submit', [AssignmentController::class, 'createSubmission']);
+    });
+    
 })->middleware('auth');

@@ -59,10 +59,13 @@ class ActivityController extends Controller
         $section = CourseSection::find($courseModule->section);
 
         if($activity == 'attendance'){
-
             $attendance = Attendance::find($courseModule->instance);
-
             return view("$this->root_dir.attendance.detail", compact('course', 'section', 'attendance'));
+        }
+
+        if($activity == 'assignment'){
+            $assignment = Assignment::find($courseModule->instance);
+            return view("$this->root_dir.assignment.detail", compact('course', 'section', 'assignment'));
         }
      
         
