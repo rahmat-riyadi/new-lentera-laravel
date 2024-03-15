@@ -54,8 +54,8 @@ $submit = function (){
                                 <td class="text-center" >H</td>
                                 <td class="text-center" >I</td>
                                 <td class="text-center" >S</td>
-                                <td class="text-center" >T</td>
                                 <td class="text-center" >A</td>
+                                <td class="text-center" >T</td>
                                 <td class="w-[260px] pr-3 pl-6" >Catatan</td>
                             </tr>
                         </thead>
@@ -112,38 +112,6 @@ $submit = function (){
                                 </td>
                             </tr>
                             @endforeach
-                            {{-- @foreach ($students as $i => $student)
-                            <tr id="studentRow" >
-                                <td>{{ $i+1 }}</td>
-                                <td>
-                                    <div class="flex items-center" >
-                                        <img src="{{ ('resources/images/avatar.jpg') }}" class="w-[40px] h-[40px] rounded-full object-cover mr-3" alt="">
-                                        <div>
-                                            <p class="mb-1">{{ $student['name'] }}</p>
-                                            <span class="text-grey-500 " >{{ $student['nim'] }}</span>
-                                        </div>
-                                    </div>
-                                </td>
-                                <td class="text-center" >
-                                    <input {{ $student['status'] == 'Hadir' ? 'checked' : '' }} value="Hadir" name="{{ $student['id'] }}_status" id="student_status" type="radio" class="radio">
-                                </td>
-                                <td class="text-center" >
-                                    <input {{ $student['status'] == 'Izin' ? 'checked' : '' }} value="Izin" name="{{ $student['id'] }}_status" id="student_status" type="radio" class="radio">
-                                </td>
-                                <td class="text-center" >
-                                    <input {{ $student['status'] == 'Sakit' ? 'checked' : '' }} value="Sakit" name="{{ $student['id'] }}_status" id="student_status" type="radio" class="radio">
-                                </td>
-                                <td class="text-center" >
-                                    <input {{ $student['status'] == 'Alpa' ? 'checked' : '' }} value="Alpa" name="{{ $student['id'] }}_status" id="student_status" type="radio" class="radio">
-                                </td>
-                                <td class="text-center" >
-                                    <input {{ $student['status'] == 'Tanpa Keterangan' ? 'checked' : '' }} value="Tanpa Keterangan" name="{{ $student['id'] }}_status" id="student_status" type="radio" class="radio">
-                                </td>
-                                <td class="pr-3 pl-6" >
-                                    <input value="{{ $student['notes'] ?? '' }}" name="{{ $student['id'] }}_notes" class="text-field" />
-                                </td>
-                            </tr>
-                            @endforeach --}}
                         </tbody>
                     </table>
                 </div>
@@ -166,6 +134,8 @@ $submit = function (){
             message="Batalkan pembuatan aktivitas ?"
         />
 
+        <x-toast/>
+
     </div>
 
     @script
@@ -180,7 +150,12 @@ $submit = function (){
         })
 
         Livewire.on('notify', ([ type, message ]) => {
-            toast(type, message)
+            Alpine.store('toast').show = true
+            Alpine.store('toast').type = type
+            Alpine.store('toast').message = message
+            setTimeout(() => {
+                Alpine.store('toast').show = false
+            }, 2000);
         })
         
     </script>

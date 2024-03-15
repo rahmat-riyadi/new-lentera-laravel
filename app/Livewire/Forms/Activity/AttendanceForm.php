@@ -54,6 +54,12 @@ class AttendanceForm extends Form
         $this->course = $course;
     }
 
+    public function setInstance(Attendance $attendance){
+        $this->attendance = $attendance;
+        $this->fill($attendance);
+        $this->is_repeat = $this->is_repeat == 1 ? 'on' : '';
+    }
+
     public function setSection($section_num){
         $this->section_num = $section_num;
     }
@@ -61,8 +67,6 @@ class AttendanceForm extends Form
     public function store(){
 
         DB::beginTransaction();
-
-        Log::info($this->all());
 
         try {
 
@@ -106,4 +110,25 @@ class AttendanceForm extends Form
             throw $th;
         }
     }
+
+    public function update(){
+        DB::beginTransaction();
+        try {
+            $this->attendance->update([
+                'name' => $this->name,
+                'description' => $this->description,
+                'starttime' => $this->starttime,
+                'endtime' => $this->endtime,
+                'date' => $this->date,
+                'is_repeat' => isset($this->is_repeat),
+                'repeat_attempt' => $this->repeat_attempt ?? 0,
+                'filled_by' => $this->filled_by,
+            ]);
+            DB::commit();
+        } catch (\Throwable $th) {
+            DB::rollBack();
+            throw $th;
+        }
+    }
+
 }

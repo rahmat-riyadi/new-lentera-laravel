@@ -93,7 +93,7 @@ $submit_attendance = function (){
                 <table class="w-full font-medium" >
                     <tr>
                         <td style="width: 210px; height: 50px;" class="text-grey-500 text-sm" >Tenggat Waktu</td>
-                        <td class="text-[#121212] text-sm" >: {{ $attendance->date }}, {{ $attendance->starttime }} - {{ $attendance->endtime }}</td>
+                        <td class="text-[#121212] text-sm" >: {{ Carbon\Carbon::parse($attendance->date)->translatedFormat('d F Y') }}, {{ $attendance->starttime }} - {{ $attendance->endtime }}</td>
                     </tr>
                     <tr>
                         <td style="width: 210px;" class="text-grey-500 text-sm" >Kehadiran dilakukan oleh</td>
@@ -186,9 +186,10 @@ $submit_attendance = function (){
                 @php
                     $now = \Carbon\Carbon::now();
                     $endtime = \Carbon\Carbon::parse($attendance->date . ' ' . $attendance->endtime);
-                    $starttime = \Carbon\Carbon::parse($attendance->date . ' ' . $attendance->startime);
+                    $starttime = \Carbon\Carbon::parse($attendance->date . ' ' . $attendance->starttime);
+                    Log::info($endtime->gt($now)) ;
                 @endphp
-                @if ($attendance->filled_by == 'Student' && !$endtime->gt($now) && !$starttime->lt($now))
+                @if ($attendance->filled_by == 'Student' && $endtime->gt($now) && $starttime->lt($now) )
                 <div class="h-5" ></div>
                 <button type="button" @click="modal.student_attendance = true" class="btn-medium btn-outlined" >
                     Lakukan Kehadiran
