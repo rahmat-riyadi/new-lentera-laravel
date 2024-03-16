@@ -6,6 +6,8 @@ use App\Helpers\CourseHelper;
 use App\Models\Course;
 use App\Models\Module;
 use App\Models\Quiz;
+use App\Models\Role;
+use App\Models\StudentQuiz;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -167,6 +169,47 @@ class QuizForm extends Form
                 'question_show_number' => $this->question_show_number ?? 5,
                 'activity_remember' => $this->activity_remember ?? null,
             ]);
+
+            if($this->quiz->questions->count() != 0){
+                $questionIds = $this->quiz->questions->pluck('id')->toArray();
+                $role = Role::where('shortname', 'student')->first();
+
+                $participantsData = DB::connection('moodle_mysql')
+                ->table('mdl_enrol')
+                ->where('mdl_enrol.courseid', '=', $this->quiz->course_id)
+                ->where('mdl_enrol.roleid', '=', $role->id)
+                ->where('mdl_user_enrolments.userid', '!=', auth()->user()->id)
+                ->join('mdl_user_enrolments', 'mdl_user_enrolments.enrolid', 'mdl_enrol.id')
+                ->join('mdl_user', 'mdl_user.id', 'mdl_user_enrolments.userid')
+                ->select('mdl_user.id')->get();
+
+                foreach($participantsData as $i => $participant){
+
+                    if($i != 0){
+                        $questionIds = array_diff($questionIds, [0]);
+                    }
+
+                    shuffle($questionIds);
+
+                    for ($j = $this->quiz->question_show_number; $j < count($questionIds); $j += $this->quiz->question_show_number+1) {
+                        array_splice($questionIds, $j, 0, 0);
+                    }
+
+                    $data = [
+                        'student_id' => $participant->id,
+                        'layout' => json_encode($questionIds),
+                        'quiz_id' => $this->quiz->id
+                    ];
+
+                    StudentQuiz::updateOrCreate(
+                        [
+                            'student_id' => $participant->id,
+                            'quiz_id' => $this->quiz->id
+                        ],
+                        $data
+                    );
+                }
+            }
 
             DB::commit();
 

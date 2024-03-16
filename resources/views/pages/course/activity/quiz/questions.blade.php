@@ -168,7 +168,7 @@ $submit = function (){
                     <label for="description" class="block mt-6" >
                         <span class="block label text-gray-600 text-[12px] mb-1" >Masukkan Jawaban</span>
                         <div wire:ignore >
-                            <textarea class="answer_{{ $i }}" >{{ $form->questions[$i]['answers'][0]['answer'] }}</textarea>
+                            <textarea class="answer_{{ $i }}" >{{ $form->questions[$i]['answers'][0]['answer'] ?? '' }}</textarea>
                         </div>
                     </label>
                     @endif

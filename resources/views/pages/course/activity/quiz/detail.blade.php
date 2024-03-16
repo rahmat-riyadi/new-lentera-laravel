@@ -71,9 +71,9 @@ mount(function (Course $course,CourseSection $section, Quiz $quiz){
         // ->first();
     }
 
-    if(session('success')){
-        $this->dispatch('notify-delay', 'Success', session('success'));
-    }
+    // if(session('success')){
+    //     $this->dispatch('notify-delay', 'Success', session('success'));
+    // }
 
 });
 
@@ -84,17 +84,18 @@ mount(function (Course $course,CourseSection $section, Quiz $quiz){
 <x-layouts.app>
     @volt
     <div
-        x-data="{ tab: 'participants' }"
+        x-data="{ tab: 'question' }"
         class="h-full overflow-y-auto relative"
     >
         <x-activity-subheader 
             path="/course/{{ $course->shortname }}" 
-            title="Detail Quiz"
+            title="{{ $quiz->name }}"
             :course="$course"
             :section="$section"
         />
 
         <div class="p-8">
+            @if ($role != 'student')
             <div class="bg-white p-5 rounded-xl">
                 <h3 class="font-semibold text-lg mb-2" >{{ $quiz->name }}</h3>
                 <p class="text-grey-700 text-sm" > {!! $quiz->description !!}</p>
@@ -139,18 +140,19 @@ mount(function (Course $course,CourseSection $section, Quiz $quiz){
                     </table>
                 </div>
             </div>
-
             <div class="p-5 bg-white rounded-xl mt-6">
                 <div class="flex space-x-3 mb-6">
-                    <button @click="tab = 'participants'" class="btn-tabs rounded-lg" :class="{ 'active' : tab == 'participants' }" >
+                    <button type="button" @click="tab = 'participants'" class="btn-tabs rounded-lg" :class="{ 'active' : tab == 'participants' }" >
                         Peserta
                     </button>
-                    <button @click="tab = 'question'" class="btn-tabs rounded-lg" :class="{ 'active' : tab == 'question' }" >
+                    <button type="button" @click="tab = 'question'" class="btn-tabs rounded-lg" :class="{ 'active' : tab == 'question' }" >
                         Soal
                     </button>
                 </div>
 
-                <div x-show="tab = 'participants'" >
+                <div
+                    x-show="tab == 'participants'"
+                >
                     <table class="w-full" >
                         <thead class="table-head" >
                             <tr>
@@ -174,34 +176,17 @@ mount(function (Course $course,CourseSection $section, Quiz $quiz){
                                     </div>
                                 </td>
                                 <td >
-                                    {{-- @if (!empty($student->created_at))
-                                    {{ \Carbon\Carbon::parse($student->created_at)->translatedFormat('d F Y, H:i') }}
-                                    @else
-                                        -
-                                    @endif --}}
+                                    
                                 </td>
                                 <td>
-                                    {{-- @if (is_null($student->created_at))
-                                        <p class="chip empty text-center px-3 text-xs w-fit font-medium rounded-xl">Belum Dikumpulkan</p>
-                                    @else
-                                        @php
-                                            $sub_time = \Carbon\Carbon::parse($student->created_at);
-                                            $assign_time = \Carbon\Carbon::parse($assignment->due_date);
-                                        @endphp
-                                        @if ($sub_time->gt($assign_time))
-                                        <p class="chip late text-center px-3 text-xs w-fit font-medium rounded-xl">Terlambat Dikumpulkan</p>
-                                        @else
-                                        <p class="chip attend text-center px-3 text-xs w-fit font-medium rounded-xl">Dikumpulkan</p>
-                                        @endif
-                                    @endif --}}
+                                    
                                 </td>
                                 <td class="text-center" >
-                                    {{-- {{ !is_null($student->grade) ? number_format($student->grade, 2, ',') : '0,00' }} --}}
                                 </td>
                                 <td >
                                     <a 
                                         class="btn btn-outlined" 
-                                        {{-- href='{{ is_null($student->assignment_submission_id) ? "javascript:;" : "/teacher/assignment/$assignment->id/grade/$student->assignment_submission_id" }}' --}}
+                                        href=""
                                     >
                                         Nilai
                                     </a>
@@ -212,14 +197,74 @@ mount(function (Course $course,CourseSection $section, Quiz $quiz){
                     </table>
                 </div>
 
-                <div x-show="tab = 'question'" >
-                    asdfas
+                <div 
+                    x-show="tab == 'question'" 
+                >
+                    <div class="flex items-center">
+                        <p class="font-semibold" >Daftar Soal</p>
+                        <a href="/" class="btn btn-outlined ml-auto">
+                            Ubah Soal
+                        </a>
+                    </div>
+                    <div class="flex flex-col mt-4" >
+                        @foreach ($quiz->questions ?? [] as $i => $item)
+                        <div class="flex border hover:bg-grey-100 items-center border-grey-300 px-3 py-4 rounded-xl mt-5" >
+                            <span class="chip empty h-[26px] w-[26px] flex justify-center items-center p-0 mr-2 my-0" >{{ $i+1 }}</span>
+                            <div class="text-sm" >
+                                {!! $item->question !!}
+                            </div>
+                        </div>
+                        @endforeach
+                    </div>
                 </div>
 
             </div>
-
+            @else
+            <div class="bg-white p-5 rounded-xl">
+                <h3 class="font-semibold text-lg mb-2" >{{ $quiz->name }}</h3>
+                <p class="text-grey-700 text-sm" > {!! $quiz->description !!}</p>
+                <div class="flex mt-4">
+                    <table class="w-full font-normal md:font-medium" >
+                        @php
+                            $start_date = \Carbon\Carbon::parse($quiz->start_date);
+                            $end_date = \Carbon\Carbon::parse($quiz->due_date);
+                        @endphp
+                        <tr>
+                            <td style="height: 37px;" class="text-grey-500 text-sm md:w-[210px]" >Tenggat Waktu</td>
+                            <td class="text-[#121212] text-sm" > <span class="mr-1 font-semibold text-grey-500" >:</span> 
+                                {{ Carbon\Carbon::parse($quiz->end_date)->translatedFormat('d F Y') }}
+                            </td>
+                        </tr>
+                        <tr>
+                            <td style="height: 37px;" class="md:w-[210px] text-grey-500 text-sm" >Waktu Mulai</td>
+                            <td class="text-[#121212] text-sm" > <span class="mr-1 font-semibold text-grey-500" >:</span> {{ $start_date->format('H:i') }} - {{ $end_date->format('H:i') }}</td>
+                        </tr>
+                        <tr>
+                            <td style="height: 37px;" class="md:w-[210px] text-grey-500 text-sm" >Waktu Pengerjaan</td>
+                            <td class="text-[#121212] text-sm" > <span class="mr-1 font-semibold text-grey-500" >:</span> {{ $start_date->diffInMinutes($end_date) }} Menit</td>
+                        </tr>
+                    </table>
+                    <table class="w-full font-medium md:block hidden" >
+                        <tr>
+                            <td style="width: 210px; height: 37px;" class="text-grey-500 text-sm" >Jumlah Percobaan</td>
+                            <td class="text-[#121212] text-sm" > <span class="mr-1 font-semibold text-grey-500" >:</span> {{ $quiz->answer_attempt }} Kali</td>
+                        </tr>
+                        <tr>
+                            <td style="width: 210px; height: 37px;" class="text-grey-500 text-sm" >Status</td>
+                            <td class="text-[#121212] text-sm" > <span class="mr-1 font-semibold text-grey-500" >:</span> <span class="chip py-1 empty" >-</span></td>
+                        </tr>
+                        <tr>
+                            <td style="width: 210px; height: 37px;" class="text-grey-500 text-sm" >Penilaian</td>
+                            <td class="text-[#121212] text-sm" > <span class="mr-1 font-semibold text-grey-500" >:</span> <span class="chip py-1 empty" >-</span></td>
+                        </tr>
+                    </table>
+                </div>
+                <div class="h-4" ></div>
+                <a wire:navigate.hover href="/student/quiz/{{ $quiz->id }}/answer" class="btn-outlined md:w-fit block w-full text-center">Mulai Kuis</a>
+            </div>
+            @endif
         </div>
-
     </div>
+
     @endvolt
 </x-layouts.app>

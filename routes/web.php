@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\ActivityController;
 use App\Http\Controllers\CourseController;
+use App\Http\Controllers\Student\QuizController as StudentQuizController;
 use App\Http\Controllers\Teacher\AssignmentController;
 use App\Http\Controllers\Teacher\AttendanceController;
 use App\Http\Controllers\Teacher\QuizController;
@@ -60,6 +61,10 @@ Route::group(['prefix' => 'teacher'], function(){
 Route::group(['prefix' => 'student'], function(){
     Route::group(['prefix' => 'assignment'], function(){
         Route::get('{assignment}/submit', [AssignmentController::class, 'createSubmission']);
+    });
+
+    Route::group(['prefix' => 'quiz'], function(){
+        Route::get('{quiz}/answer', [StudentQuizController::class, 'answer']);
     });
     
 })->middleware('auth');
