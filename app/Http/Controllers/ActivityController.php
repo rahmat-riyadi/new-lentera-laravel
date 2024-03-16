@@ -63,6 +63,11 @@ class ActivityController extends Controller
             return view("$this->root_dir.attendance.detail", compact('course', 'section', 'attendance'));
         }
 
+        if($activity == 'quiz'){
+            $quiz = Quiz::find($courseModule->instance);
+            return view("$this->root_dir.quiz.detail", compact('course', 'section', 'quiz'));
+        }
+
         if($activity == 'assignment'){
             $assignment = Assignment::find($courseModule->instance);
             return view("$this->root_dir.assignment.detail", compact('course', 'section', 'assignment'));

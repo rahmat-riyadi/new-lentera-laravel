@@ -91,7 +91,7 @@ $submit = function (){
                     <label for="description">
                         <span class="block label text-gray-600 text-[12px] mb-1" >Masukkan Soal</span>
                         <div wire:ignore >
-                            <textarea class="question_{{ $i }}" >{{ $form->questions[$i]['question'] }}</textarea>
+                            <textarea class="question_{{ $i }}" >{{ $form->questions[$i]['question'] ?? '' }}</textarea>
                         </div>
                         @error('form.questions.{{ $i }}.question')
                         <span class="text-error mt-3 text-sm" >{{ $message }}</span>

@@ -28,7 +28,7 @@ class QuestionForm extends Form
             foreach($this->questions as $question){
                 $instance = Question::updateOrCreate(
                     [
-                        'id' => $question['id']
+                        'id' => $question['id'] ?? null
                     ],
                     [
                         'user_id' => auth()->user()->id,
