@@ -71,9 +71,10 @@ mount(function (Course $course,CourseSection $section, Quiz $quiz){
         // ->first();
     }
 
-    // if(session('success')){
-    //     $this->dispatch('notify-delay', 'Success', session('success'));
-    // }
+    if(session('success')){
+        Log::info('sd');
+        $this->dispatch('notify-delay', 'Success', session('success'));
+    }
 
 });
 
@@ -264,7 +265,29 @@ mount(function (Course $course,CourseSection $section, Quiz $quiz){
             </div>
             @endif
         </div>
+
+        <x-toast/>
+
     </div>
+
+    @script
+    <script>
+
+        Livewire.on('notify-delay', ([ type, message ]) => {
+
+            setTimeout(() => {
+                Alpine.store('toast').show = true
+                Alpine.store('toast').type = type
+                Alpine.store('toast').message = message
+                setTimeout(() => {
+                    Alpine.store('toast').show = false
+                }, 2000);
+            }, 100)
+
+        })
+        
+    </script>
+    @endscript
 
     @endvolt
 </x-layouts.app>

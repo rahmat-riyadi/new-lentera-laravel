@@ -7,7 +7,8 @@ use App\Models\{
     Quiz,
     Question,
     StudentQuiz,
-    StudentQuizAnswer
+    StudentQuizAnswer,
+    CourseModule,
 };
 
 state([
@@ -23,11 +24,13 @@ state([
     'studentQuiz',
     'currentPage',
     'totalPage',
-    'answeredQuestions'
+    'answeredQuestions',
+    'courseModule'
 ]);
 
-mount(function (Course $course,CourseSection $section, Quiz $quiz){
+mount(function (Course $course, CourseSection $section, Quiz $quiz, CourseModule $courseModule){
     $this->alpha = ['A', 'B', 'C', 'D', 'E'];
+    $this->courseModule = $courseModule;
     $this->course = $course;
     $this->section = $section;
     $this->quiz = $quiz;
@@ -35,11 +38,22 @@ mount(function (Course $course,CourseSection $section, Quiz $quiz){
     ->where('quiz_id', $quiz->id)
     ->first();
 
+    Log::info($quiz->answer_attempt);
+    Log::info($this->studentQuiz->attempt);
+
+    if($this->studentQuiz->attempt >= $quiz->answer_attempt){
+        session()->flash('success', 'Jumlah percobaan melewati batas');
+        $this->redirect("/course/{$course->shortname}/activity/quiz/detail/{$courseModule->id}", navigate: true);
+        return;
+    }
+
+
     $this->navigationNumber = [];
     $this->totalPage = 1;
 
     $this->answeredQuestions = StudentQuizAnswer::where('student_quiz_id', $this->studentQuiz->id)
     ->whereNotNull('answer_id')
+    ->orWhereNotNull('text_answer')
     ->pluck('question_id')
     ->toArray();
 
@@ -103,8 +117,6 @@ $jump_to = function ($idx) {
 
 $submit = function (){
 
-    Log::info($this->answers);
-
     DB::beginTransaction();
     
     try {
@@ -135,7 +147,6 @@ $submit = function (){
 
         }
 
-
         DB::commit();
 
         if($this->totalPage != $this->currentPage){
@@ -144,7 +155,10 @@ $submit = function (){
             return;
         }
 
-        Log::info('finish');
+        $this->studentQuiz->attempt = $this->studentQuiz->attempt + 1;
+        $this->studentQuiz->save();
+
+        $this->dispatch('finish-quiz');        
 
 
     } catch (\Throwable $th) {
@@ -232,10 +246,32 @@ $submit = function (){
             </div>
         </div>
 
+        <x-alert
+            show="$store.alert.save"
+            onCancel="$store.alert.save = false"
+            type="success"
+            title="Pemberitahuan"
+            message="Yakin ingin menyelesaikan Kuis ?"
+            cancelText="Periksa Kembali"
+            okText="Selesai"
+            onOk="Livewire.navigate('/course/{{ $course->shortname }}/activity/quiz/detail/{{ $courseModule->id }}')"
+        />
+
     </div>
 
     @script
     <script>
+
+        Alpine.store('alert', {
+            cancel: false,
+            save: false,
+            loading: false,
+            save: false
+        })
+
+        Livewire.on('finish-quiz', () => {
+            Alpine.store('alert').save = true
+        })
 
         Livewire.on('init-tinymce', () => {
             console.log('sd')
