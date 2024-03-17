@@ -6,7 +6,8 @@ use App\Models\{
     CourseSection,
     Quiz,
     Question,
-    StudentQuiz
+    StudentQuiz,
+    StudentQuizAnswer
 };
 
 state([
@@ -20,13 +21,12 @@ state([
     'answers',
     'navigationNumber',
     'studentQuiz',
-    'currentPage'
+    'currentPage',
+    'totalPage',
+    'answeredQuestions'
 ]);
 
 mount(function (Course $course,CourseSection $section, Quiz $quiz){
-
-    $a = request()->query('page') ?? 1;
-
     $this->alpha = ['A', 'B', 'C', 'D', 'E'];
     $this->course = $course;
     $this->section = $section;
@@ -36,40 +36,124 @@ mount(function (Course $course,CourseSection $section, Quiz $quiz){
     ->first();
 
     $this->navigationNumber = [];
-    $loc = 0;
+    $this->totalPage = 1;
 
-    $firstQuestions = [];
+    $this->answeredQuestions = StudentQuizAnswer::where('student_quiz_id', $this->studentQuiz->id)
+    ->whereNotNull('answer_id')
+    ->pluck('question_id')
+    ->toArray();
 
     foreach (json_decode($this->studentQuiz->layout) as $key => $value) {
 
         if($value == 0){
-            $loc++;
+            $this->totalPage++;
             continue;
         }
 
-        $this->navigationNumber[] = [ 'num' => $value, 'loc' => $loc ];
+        $this->navigationNumber[$value] = [
+            'question_id' => $value,
+            'loc' => $this->totalPage,
+            'is_done' => in_array($value, $this->answeredQuestions)
+        ];
     
     }
 
     $this->currentPage = $this->studentQuiz->current_page ?? 1;
 
-    $this->jump_to($this->currentPage-1);
+    $this->jump_to($this->currentPage);
 
 });
 
 $jump_to = function ($idx) {
     $questionIds =  array_reduce($this->navigationNumber, function($prev,$curr) use ($idx) {
         if($curr['loc'] == $idx){
-            return [...$prev, $curr['num']];
+            return [...$prev, $curr['question_id']];
         } else {
             return $prev;
         }
     }, []);
 
-    $this->questions = Question::whereIn('id', $questionIds)->get();
-    $this->currentPage = $idx + 1;
+    $this->questions = Question::with('answers')->whereIn('questions.id', $questionIds)
+    ->orderByRaw("FIELD(questions.id, " . implode(",", $questionIds) . ")")
+    ->leftJoin('student_quiz_answers as qa', function($q){
+        $q->on('qa.question_id', '=', 'questions.id')
+        ->where('qa.student_quiz_id', $this->studentQuiz->id);
+    })
+    ->select(
+        'questions.id',
+        'questions.question',
+        'questions.type',
+        'questions.point',
+        'qa.answer_id as student_answer',
+        'qa.text_answer as student_answer_text'
+    )
+    ->get();
+
+    // $this->questions->load('answers');
+
+
+    foreach($this->questions as $q){
+        $this->answers[$q->id] = $q->student_answer;
+    }
+    
+
+    $this->currentPage = $idx;
     $this->dispatch('init-tinymce');
 };
+
+$submit = function (){
+
+    Log::info($this->answers);
+
+    DB::beginTransaction();
+    
+    try {
+
+        foreach ($this->questions as $key => $question) {
+
+            if(!is_null($this->answers[$question->id])){
+                $data = [
+                    'student_quiz_id' => $this->studentQuiz->id,
+                    'question_id' => $question->id,
+                ];
+    
+                if(is_numeric($this->answers[$question->id])){
+                    $data['answer_id'] = $this->answers[$question->id];
+                } else {
+                    $data['text_answer'] = $this->answers[$question->id];
+                }
+    
+                $instance = StudentQuizAnswer::updateOrCreate(
+                    [
+                        'student_quiz_id' => $this->studentQuiz->id,
+                        'question_id' => $this->answers[$question->id],
+                    ],
+                    $data
+                );
+                $this->answeredQuestions[] = $instance->id;
+            }
+
+        }
+
+
+        DB::commit();
+
+        if($this->totalPage != $this->currentPage){
+            $this->currentPage++;
+            $this->jump_to($this->currentPage);
+            return;
+        }
+
+        Log::info('finish');
+
+
+    } catch (\Throwable $th) {
+        Log::info($th->getMessage());
+        DB::rollBack();
+    }
+
+    
+}
 
 
 ?>
@@ -92,8 +176,8 @@ $jump_to = function ($idx) {
                 <p class="mb-3 font-medium" >Navigasi Soal</p>
                 <div class="grid grid-cols-5 gap-3" >
                     @foreach ($navigationNumber as $q => $navNum)
-                    <button wire:click="jump_to('{{ $navNum['loc'] }}')" class="chip px-3 py-1 rounded-lg border-[1.5px]  bg-gray-400/5 {{ ($currentPage ?? 1) == ($navNum['loc']+1) ? 'border-primary' : '' }} " type="button" >
-                        {{ $q+1 }}
+                    <button wire:click="jump_to('{{ $navNum['loc'] }}')" class="chip px-3 py-1 rounded-lg border-[1.5px]  bg-gray-400/5 {{ ($currentPage) == ($navNum['loc']) ? 'border-secodary' : '' }} {{ $navNum['is_done'] ? 'attend border-primary': '' }} " type="button" >
+                        {{ $loop->index + 1 }}
                     </button>
                     @endforeach
                 </div>
@@ -113,7 +197,7 @@ $jump_to = function ($idx) {
                             @if ($question->type == 'multiple-choice')
                                 @foreach ($question->answers as $a => $answer)
                                     <label class="flex cursor-pointer items-center relative " >
-                                        <input class="peer absolute invisible" name="question_{{ $question->id }}" type="radio">
+                                        <input wire:model="answers.{{ $question->id }}" value="{{ $answer->id }}" class="peer absolute invisible" name="question_{{ $question->id }}" type="radio">
                                         <span class="chip px-2 py-[2px] border-[1.5px] mr-3 text-sm font-medium peer-checked:border-primary peer-checked:attend transition-all" >{{ $alpha[$a] }}</span>
                                         <p>{{ $answer->answer }}</p>
                                     </label>
@@ -121,7 +205,7 @@ $jump_to = function ($idx) {
                             @elseif($question->type == 'option')   
                                 @foreach ($question->answers as $a => $answer)
                                     <label class="flex cursor-pointer items-center" >
-                                        <input value="1" name="question_{{ $question->id }}_answer" id="" type="radio" class="radio mr-3">
+                                        <input name="question_{{ $question->id }}" wire:model="answers.{{ $question->id }}" value="{{ $answer->id }}" id="" type="radio" class="radio mr-3">
                                         <p>{{ $answer->answer }}</p>
                                     </label>
                                 @endforeach
@@ -129,7 +213,7 @@ $jump_to = function ($idx) {
                             <label for="description" class="block mt-6" >
                                 <span class="block label text-gray-600 text-[12px] mb-1" >Masukkan Jawaban</span>
                                 <div wire:ignore >
-                                    <textarea  ></textarea>
+                                    <textarea class="question_{{ $question->id }}" >{{ $question->student_answer_text ?? '' }}</textarea>
                                 </div>
                             </label>
                             @endif
@@ -138,7 +222,7 @@ $jump_to = function ($idx) {
                 </div>
                 @endforeach
                 <div class="flex justify-end gap-3 mt-4" >
-                    <x-button type="submit" >
+                    <x-button type="button" wire:click="submit" >
                         Submit
                     </x-button>
                     <x-button @click="$store.alert.cancel = true" variant="outlined" >
@@ -166,7 +250,8 @@ $jump_to = function ($idx) {
                     images_upload_url: '/api/question/image',
                     setup: editor => {
                         editor.on('change', e => {
-        
+                            const idx = tinymce.activeEditor.targetElm.classList[0].split('_')[1]
+                            $wire.$set(`answers.${idx}`, tinymce.activeEditor.getContent())
                         })
                     }
                 });
