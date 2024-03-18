@@ -1,6 +1,6 @@
 <?php
 
-use function Livewire\Volt\{state, mount, on, dehydrate};
+use function Livewire\Volt\{state, mount, on, updated, updating};
 use App\Models\{
     Course,
     CourseSection,
@@ -37,9 +37,6 @@ mount(function (Course $course, CourseSection $section, Quiz $quiz, CourseModule
     $this->studentQuiz = StudentQuiz::where('student_id', auth()->user()->id)
     ->where('quiz_id', $quiz->id)
     ->first();
-
-    Log::info($quiz->answer_attempt);
-    Log::info($this->studentQuiz->attempt);
 
     if($this->studentQuiz->attempt >= $quiz->answer_attempt){
         session()->flash('success', 'Jumlah percobaan melewati batas');
@@ -79,6 +76,7 @@ mount(function (Course $course, CourseSection $section, Quiz $quiz, CourseModule
 });
 
 $jump_to = function ($idx) {
+
     $questionIds =  array_reduce($this->navigationNumber, function($prev,$curr) use ($idx) {
         if($curr['loc'] == $idx){
             return [...$prev, $curr['question_id']];
@@ -103,7 +101,7 @@ $jump_to = function ($idx) {
     )
     ->get();
 
-    // $this->questions->load('answers');
+    Log::info(json_decode($this->questions));
 
 
     foreach($this->questions as $q){
@@ -112,63 +110,79 @@ $jump_to = function ($idx) {
     
 
     $this->currentPage = $idx;
-    $this->dispatch('init-tinymce');
+    $this->dispatch('init-tinymce', $this->questions);
 };
 
 $submit = function (){
 
+    $this->answers = [];
+
+    if($this->totalPage != $this->currentPage){
+        $this->currentPage++;
+        $this->jump_to($this->currentPage);
+        return;
+    }
+
+    $this->studentQuiz->attempt = $this->studentQuiz->attempt + 1;
+    $this->studentQuiz->save();
+
+    $this->dispatch('finish-quiz');
+
+    
+};
+
+$handle_change_answer = function ($question_id, $answer_id){
+
     DB::beginTransaction();
-    
+
     try {
-
-        foreach ($this->questions as $key => $question) {
-
-            if(!is_null($this->answers[$question->id])){
-                $data = [
-                    'student_quiz_id' => $this->studentQuiz->id,
-                    'question_id' => $question->id,
-                ];
-    
-                if(is_numeric($this->answers[$question->id])){
-                    $data['answer_id'] = $this->answers[$question->id];
-                } else {
-                    $data['text_answer'] = $this->answers[$question->id];
-                }
-    
-                $instance = StudentQuizAnswer::updateOrCreate(
-                    [
-                        'student_quiz_id' => $this->studentQuiz->id,
-                        'question_id' => $this->answers[$question->id],
-                    ],
-                    $data
-                );
-                $this->answeredQuestions[] = $instance->id;
-            }
-
-        }
-
+        $instance = StudentQuizAnswer::updateOrCreate(
+            [
+                'student_quiz_id' => $this->studentQuiz->id,
+                'question_id' => $question_id,
+            ],
+            [
+                'student_quiz_id' => $this->studentQuiz->id,
+                'question_id' => $question_id,
+                'answer_id' => $answer_id,
+            ]
+        );
+        $this->answeredQuestions[] = $instance->id;
+        $this->navigationNumber[$question_id]['is_done'] = true;
         DB::commit();
-
-        if($this->totalPage != $this->currentPage){
-            $this->currentPage++;
-            $this->jump_to($this->currentPage);
-            return;
-        }
-
-        $this->studentQuiz->attempt = $this->studentQuiz->attempt + 1;
-        $this->studentQuiz->save();
-
-        $this->dispatch('finish-quiz');        
-
-
     } catch (\Throwable $th) {
         Log::info($th->getMessage());
         DB::rollBack();
     }
 
-    
-}
+};
 
+$handle_submit_essay = function ($question_id ,$val){
+    DB::beginTransaction();
+
+    try {
+        $instance = StudentQuizAnswer::updateOrCreate(
+            [
+                'student_quiz_id' => $this->studentQuiz->id,
+                'question_id' => $question_id,
+            ],
+            [
+                'student_quiz_id' => $this->studentQuiz->id,
+                'question_id' => $question_id,
+                'text_answer' => $val,
+            ]
+        );
+        $this->answeredQuestions[] = $instance->id;
+        $this->navigationNumber[$question_id]['is_done'] = true;
+        DB::commit();
+    } catch (\Throwable $th) {
+        Log::info($th->getMessage());
+        DB::rollBack();
+    }
+
+};
+
+on(['submit-essay' => 'handle_submit_essay']);
 
 ?>
 
@@ -196,9 +210,25 @@ $submit = function (){
                     @endforeach
                 </div>
             </div>
-            <div class="flex-1 order-1">
+            <div wire:loading wire:target="jump_to, submit" class="flex-1 order-1">
+                @for ($i = 0; $i < 3; $i++)
+                <div  class="flex mb-4 gap-4">
+                    <div class="bg-white border-[1.5px] p-4 text-sm w-[140px] rounded-lg h-[80px]">
+                        <div class="w-[30px] h-[8px] animate-pulse bg-gray-200 my-2 rounded-lg" ></div>
+                        <div class="w-[80px] h-[8px] animate-pulse bg-gray-200 my-2 rounded-lg" ></div>
+                    </div>
+                    <div class="bg-white flex-1 p-6 rounded-lg h-[210px]">
+                        <div class="w-full h-[10px] animate-pulse bg-gray-200 rounded-lg"  ></div>
+                        <div class="w-[80%] h-[10px] animate-pulse bg-gray-200 my-2 rounded-lg" ></div>
+                        <div class="w-full h-[10px] animate-pulse bg-gray-200 rounded-lg"  ></div>
+                        <div class="w-[50%] h-[10px] animate-pulse bg-gray-200 my-2 rounded-lg" ></div>
+                    </div>
+                </div>
+                @endfor
+            </div>
+            <div wire:loading.remove wire:target="submit, jump_to" class="flex-1 order-1">
                 @foreach ($questions as $i => $question)
-                <div class="flex mb-4 gap-4">
+                <div  class="flex mb-4 gap-4">
                     <div class="bg-white h-fit border-[1.5px] p-4 text-sm w-[140px] rounded-lg">
                         <p class="font-semibold mb-2" >Soal {{ $i + ($quiz->question_show_number * $currentPage - 1) }}</p>
                         <p >Point {{ str_replace('.',',',$question->point) }} dari 20,00</p>
@@ -211,7 +241,7 @@ $submit = function (){
                             @if ($question->type == 'multiple-choice')
                                 @foreach ($question->answers as $a => $answer)
                                     <label class="flex cursor-pointer items-center relative " >
-                                        <input wire:model="answers.{{ $question->id }}" value="{{ $answer->id }}" class="peer absolute invisible" name="question_{{ $question->id }}" type="radio">
+                                        <input wire:change="handle_change_answer({{ $question->id }}, {{ $answer->id }})" wire:model="answers.{{ $question->id }}" value="{{ $answer->id }}" class="peer absolute invisible" name="question_{{ $question->id }}" type="radio">
                                         <span class="chip px-2 py-[2px] border-[1.5px] mr-3 text-sm font-medium peer-checked:border-primary peer-checked:attend transition-all" >{{ $alpha[$a] }}</span>
                                         <p>{{ $answer->answer }}</p>
                                     </label>
@@ -219,15 +249,16 @@ $submit = function (){
                             @elseif($question->type == 'option')   
                                 @foreach ($question->answers as $a => $answer)
                                     <label class="flex cursor-pointer items-center" >
-                                        <input name="question_{{ $question->id }}" wire:model="answers.{{ $question->id }}" value="{{ $answer->id }}" id="" type="radio" class="radio mr-3">
+                                        <input wire:change="handle_change_answer({{ $question->id }}, {{ $answer->id }})" name="question_{{ $question->id }}" wire:model="answers.{{ $question->id }}" value="{{ $answer->id }}" id="" type="radio" class="radio mr-3">
                                         <p>{{ $answer->answer }}</p>
                                     </label>
                                 @endforeach
                             @elseif($question->type == 'essay')   
                             <label for="description" class="block mt-6" >
                                 <span class="block label text-gray-600 text-[12px] mb-1" >Masukkan Jawaban</span>
-                                <div wire:ignore >
-                                    <textarea class="question_{{ $question->id }}" >{{ $question->student_answer_text ?? '' }}</textarea>
+                                <input type="hidden" class="question_{{ $question->id }}" value="{{ $question->student_answer_text }}" >
+                                <div class="question_{{ $question->id }}"  >
+                                    <textarea class="question_{{ $question->id }}" ></textarea>
                                 </div>
                             </label>
                             @endif
@@ -237,7 +268,7 @@ $submit = function (){
                 @endforeach
                 <div class="flex justify-end gap-3 mt-4" >
                     <x-button type="button" wire:click="submit" >
-                        Submit
+                        {{ $totalPage != $currentPage ? 'Selanjutnya' : 'Selesai' }}
                     </x-button>
                     <x-button @click="$store.alert.cancel = true" variant="outlined" >
                         Batal
@@ -273,8 +304,8 @@ $submit = function (){
             Alpine.store('alert').save = true
         })
 
-        Livewire.on('init-tinymce', () => {
-            console.log('sd')
+        Livewire.on('init-tinymce', ([ questions ]) => {
+
             setTimeout(() => {
                 tinymce.init({
                     height: 280,
@@ -285,13 +316,28 @@ $submit = function (){
                     file_picker_types: 'file image media',
                     images_upload_url: '/api/question/image',
                     setup: editor => {
-                        editor.on('change', e => {
+
+                        editor.on('init', () => {
                             const idx = tinymce.activeEditor.targetElm.classList[0].split('_')[1]
-                            $wire.$set(`answers.${idx}`, tinymce.activeEditor.getContent())
+                        })
+
+                        editor.on('change', e => {
+                            const idx = tinymce.activeEditor.targetElm.parentElement.previousElementSibling.classList[0].split('_')[1]
+                            $wire.$dispatch('submit-essay', { question_id: idx, val: tinymce.activeEditor.getContent() })
                         })
                     }
                 });
-            }, 10);
+                questions.forEach(e => {
+                    console.log(e)
+                    if(e.type == 'essay') {
+                        // console.log(e)
+                        const el = document.querySelector('input.question_'+e.id)
+                        el.nextElementSibling.querySelector('textarea').innerHTML = e.student_answer_text
+                        el.nextElementSibling.setAttribute('wire:ignore')
+                    }
+                })
+            }, 0);
+
         })
 
     </script>

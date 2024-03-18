@@ -8,7 +8,8 @@ use App\Models\{
     User,
     Context,
     Role,
-    Quiz
+    Quiz,
+    StudentQuiz
 };
 
 state([
@@ -17,10 +18,12 @@ state([
     'quiz', 
     'role', 
     'students',
+    'studentQuiz',
 ]);
 
 mount(function (Course $course,CourseSection $section, Quiz $quiz){
     $ctx = Context::where('contextlevel', 50)->where('instanceid', 4)->first();
+
     $data = DB::connection('moodle_mysql')->table('mdl_role_assignments as ra')
     ->join('mdl_role as r', 'r.id', '=', 'ra.roleid')
     ->where('ra.contextid', $ctx->id)
@@ -33,6 +36,7 @@ mount(function (Course $course,CourseSection $section, Quiz $quiz){
     $this->course = $course;
     $this->section = $section;
     $this->quiz = $quiz;
+    
 
     if($this->role != 'student'){
 
@@ -66,6 +70,9 @@ mount(function (Course $course,CourseSection $section, Quiz $quiz){
         // $this->need_grading_count = $this->students->filter(fn($e) => is_null($e->grade) && !is_null($e->created_at))->count();
         
     } else {
+        $this->studentQuiz = StudentQuiz::where('quiz_id', $quiz->id)
+        ->where('student_id', auth()->user()->id)
+        ->first();
         // $this->student_submission = AssignmentSubmission::where('student_id', auth()->user()->id)
         // ->where('assignment_id', $assignment->id)
         // ->first();
@@ -248,7 +255,7 @@ mount(function (Course $course,CourseSection $section, Quiz $quiz){
                     <table class="w-full font-medium md:block hidden" >
                         <tr>
                             <td style="width: 210px; height: 37px;" class="text-grey-500 text-sm" >Jumlah Percobaan</td>
-                            <td class="text-[#121212] text-sm" > <span class="mr-1 font-semibold text-grey-500" >:</span> {{ $quiz->answer_attempt }} Kali</td>
+                            <td class="text-[#121212] text-sm" > <span class="mr-1 font-semibold text-grey-500" >:</span> {{ $quiz->answer_attempt - $studentQuiz->attempt  }} Kali</td>
                         </tr>
                         <tr>
                             <td style="width: 210px; height: 37px;" class="text-grey-500 text-sm" >Status</td>
@@ -260,8 +267,12 @@ mount(function (Course $course,CourseSection $section, Quiz $quiz){
                         </tr>
                     </table>
                 </div>
+                @if ($studentQuiz->attempt >= $quiz->answer_attempt)
+
+                @else
                 <div class="h-4" ></div>
-                <a wire:navigate.hover href="/student/quiz/{{ $quiz->id }}/answer" class="btn-outlined md:w-fit block w-full text-center">Mulai Kuis</a>
+                <a href="/student/quiz/{{ $quiz->id }}/answer" class="btn-outlined md:w-fit block w-full text-center">Mulai Kuis</a>
+                @endif
             </div>
             @endif
         </div>

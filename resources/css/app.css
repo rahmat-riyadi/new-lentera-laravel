@@ -197,6 +197,10 @@ input[type="date"]::-webkit-calendar-picker-indicator {
         @apply text-grey-800 bg-grey-300
     }
 
+    .skeleton {
+        @apply bg-gradient-to-r from-transparent via-rose-100/10 to-transparent
+    }
+
 }
 
 .page-loader {
