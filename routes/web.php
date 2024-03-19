@@ -55,6 +55,7 @@ Route::group(['prefix' => 'teacher'], function(){
 
     Route::group(['prefix' => 'quiz'], function(){
         Route::get('{quiz}/questions/create', [QuizController::class, 'createQuestion']);
+        Route::get('{quiz}/assessment/{studentQuiz}', [QuizController::class, 'assessment']);
     });
 })->middleware('auth');
 

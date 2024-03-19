@@ -8,6 +8,7 @@ use App\Models\CourseModule;
 use App\Models\CourseSection;
 use App\Models\Module;
 use App\Models\Quiz;
+use App\Models\StudentQuiz;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 
@@ -33,4 +34,9 @@ class QuizController extends Controller
             'courseModule'
         ));
     }
+
+    public function assessment(Quiz $quiz, StudentQuiz $studentQuiz){
+        return view('pages.course.activity.quiz.assessment', compact('studentQuiz', 'quiz'));
+    }
+
 }

@@ -9,6 +9,7 @@ use App\Models\{
     StudentQuiz,
     StudentQuizAnswer,
     CourseModule,
+    Answer,
 };
 
 state([
@@ -37,6 +38,12 @@ mount(function (Course $course, CourseSection $section, Quiz $quiz, CourseModule
     $this->studentQuiz = StudentQuiz::where('student_id', auth()->user()->id)
     ->where('quiz_id', $quiz->id)
     ->first();
+
+    if(is_null($this->studentQuiz->attempt)){
+        $this->studentQuiz->status = 'Sedang Bekerja';
+        $this->studentQuiz->start_time = \Carbon\Carbon::now();
+        $this->studentQuiz->save();
+    }
 
     if($this->studentQuiz->attempt >= $quiz->answer_attempt){
         session()->flash('success', 'Jumlah percobaan melewati batas');
@@ -101,9 +108,6 @@ $jump_to = function ($idx) {
     )
     ->get();
 
-    Log::info(json_decode($this->questions));
-
-
     foreach($this->questions as $q){
         $this->answers[$q->id] = $q->student_answer;
     }
@@ -123,7 +127,9 @@ $submit = function (){
         return;
     }
 
+    $this->studentQuiz->end_time = \Carbon\Carbon::now();
     $this->studentQuiz->attempt = $this->studentQuiz->attempt + 1;
+    $this->studentQuiz->status = 'Selesai Mengerjakan';
     $this->studentQuiz->save();
 
     $this->dispatch('finish-quiz');
@@ -135,6 +141,8 @@ $handle_change_answer = function ($question_id, $answer_id){
 
     DB::beginTransaction();
 
+    $answer = Answer::find($answer_id);
+
     try {
         $instance = StudentQuizAnswer::updateOrCreate(
             [
@@ -145,6 +153,7 @@ $handle_change_answer = function ($question_id, $answer_id){
                 'student_quiz_id' => $this->studentQuiz->id,
                 'question_id' => $question_id,
                 'answer_id' => $answer_id,
+                'grade' => $answer->is_true == 1 ? $answer->question->point : 0,
             ]
         );
         $this->answeredQuestions[] = $instance->id;
@@ -323,6 +332,7 @@ on(['submit-essay' => 'handle_submit_essay']);
 
                         editor.on('change', e => {
                             const idx = tinymce.activeEditor.targetElm.parentElement.previousElementSibling.classList[0].split('_')[1]
+                            console.log(idx)
                             $wire.$dispatch('submit-essay', { question_id: idx, val: tinymce.activeEditor.getContent() })
                         })
                     }
