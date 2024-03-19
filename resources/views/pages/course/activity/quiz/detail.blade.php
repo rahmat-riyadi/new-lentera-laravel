@@ -19,6 +19,7 @@ state([
     'role', 
     'students',
     'studentQuiz',
+    'finishedStudent'
 ]);
 
 mount(function (Course $course,CourseSection $section, Quiz $quiz){
@@ -79,6 +80,8 @@ mount(function (Course $course,CourseSection $section, Quiz $quiz){
         )
         ->get();
 
+        $this->finishedStudent = $this->students->filter(fn($e) => !is_null($e->student_quiz_id))->count();
+
         // $this->submitted_count = $this->students->filter(fn($e) => !is_null($e->created_at))->count();
         // $this->need_grading_count = $this->students->filter(fn($e) => is_null($e->grade) && !is_null($e->created_at))->count();
         
@@ -90,8 +93,7 @@ mount(function (Course $course,CourseSection $section, Quiz $quiz){
     }
 
     if(session('success')){
-        Log::info('sd');
-        $this->dispatch('notify-delay', 'Success', session('success'));
+        $this->dispatch('notify-delay', 'success', session('success'));
     }
 
 });
@@ -119,7 +121,7 @@ mount(function (Course $course,CourseSection $section, Quiz $quiz){
                 <h3 class="font-semibold text-lg mb-2" >{{ $quiz->name }}</h3>
                 <p class="text-grey-700 text-sm" > {!! $quiz->description !!}</p>
                 <div class="flex mt-4">
-                    <table class="w-full font-medium" >
+                    <table class="w-full font-medium " >
                         @php
                             $start_date = \Carbon\Carbon::parse($quiz->start_date);
                             $end_date = \Carbon\Carbon::parse($quiz->due_date);
@@ -150,7 +152,11 @@ mount(function (Course $course,CourseSection $section, Quiz $quiz){
                         </tr>
                         <tr>
                             <td style="width: 210px; height: 37px;" class="text-grey-500 text-sm" >Telah Mengerjakan</td>
-                            <td class="text-[#121212] text-sm" >: {{ $quiz->show_grade == 1 ? 'Ya' : 'Tidak' }}</td>
+                            <td class="text-[#121212] text-sm" >: {{ $finishedStudent }}</td>
+                        </tr>
+                        <tr>
+                            <td style="width: 210px; height: 37px;" class="text-grey-500 text-sm" ></td>
+                            <td class="text-[#121212] text-sm" ></td>
                         </tr>
                     </table>
                 </div>
