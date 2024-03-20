@@ -29,7 +29,7 @@ state([
             />
         </button>
         <button wire:click="$toggle('show_account')" class="flex items-center cursor-pointer" >
-            <img src="{{ asset('assets/images/avatar.jpg') }}" class="w-[42px] h-[42px] rounded-full object-cover mr-3" alt="">
+            <img src="{{ asset('assets/images/avatar.webp') }}" class="w-[42px] h-[42px] rounded-full object-cover mr-3" alt="">
             <span class="hidden md:inline text-sm font-medium mr-4 capitalize" >{{ auth()->user()->firstname . " " . auth()->user()->lastname }}</span>
             <x-icons.arrow-down
                 class="hidden md:block"

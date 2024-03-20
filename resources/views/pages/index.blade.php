@@ -81,6 +81,9 @@ $get_courses = function (){
     @volt
     <div class="flex flex-col md:flex-row h-full p-7 pb-0 gap-x-7 no-scrollbar grow overflow-y-auto" >
         <div class="order-2 md:order-1" >
+            {{-- <div class="bg-white p-4 rounded-xl" >
+                s
+            </div> --}}
             <div class="bg-white p-4 rounded-xl" >
                 <p class="font-semibold text-lg text-[#121212] mb-4" >Mata Kuliah Baru diakses</p>
                 <div class="grid gap-5 sx:grid-cols-1 lg:grid-cols-2 2xl:grid-cols-3" >

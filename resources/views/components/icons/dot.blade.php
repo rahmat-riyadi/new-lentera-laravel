@@ -1,3 +1,3 @@
-<svg width="8" height="8" viewBox="0 0 8 8" fill="none" xmlns="http://www.w3.org/2000/svg">
+<svg width="8" height="8" viewBox="0 0 8 8" {{ $attributes }} xmlns="http://www.w3.org/2000/svg">
     <path fill-rule="evenodd" clip-rule="evenodd" d="M0.666016 3.99984C0.666016 2.15889 2.1584 0.666504 3.99935 0.666504C5.84028 0.666504 7.33268 2.15889 7.33268 3.99984C7.33268 5.84077 5.84028 7.33317 3.99935 7.33317C2.1584 7.33317 0.666016 5.84077 0.666016 3.99984Z" />
 </svg>

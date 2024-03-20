@@ -110,7 +110,7 @@ $submit_attendance = function (){
 
             @if ($role != 'student')
             <div class="bg-white p-5 mt-6 rounded-xl">
-                <table class=" w-full" >
+                <table class="w-full" >
                     <thead class="table-head" >
                         <tr>
                             <td class="" >No.</td>
@@ -122,10 +122,10 @@ $submit_attendance = function (){
                     <tbody>
                         @foreach ($students as $i => $student)
                         <tr>
-                            <td>{{ $i+1 }}</td>
+                            <td class="" >{{ $i+1 }}</td>
                             <td>
                                 <div class="flex items-center" >
-                                    <img src="{{ ('assets/images/avatar.jpg') }}" class="w-[40px] h-[40px] rounded-full object-cover mr-3" alt="">
+                                    <img src="{{ asset('assets/images/avatar.webp') }}" class="w-[40px] h-[40px] rounded-full object-cover mr-3" alt="">
                                     <div>
                                         <p class="mb-1">{{ $student['name'] }}</p>
                                         <span class="text-grey-500 " >{{ $student['nim'] }}</span>
@@ -134,7 +134,7 @@ $submit_attendance = function (){
                             </td>
                             <td class="text-center" >
                                 @if($student['status'] === null)
-                                    <span class="chip empty px-3" >.</span>
+                                    <span class="chip empty px-3 py-[2px]" >.</span>
                                 @else
                                     
                                 @endif

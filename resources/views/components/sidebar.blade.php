@@ -24,7 +24,7 @@ mount(function() {
 @volt
 <div
   x-data="{
-    expand: expand = '{{ Route::currentRouteName() }}' == 'course',
+    expand: '{{ Route::currentRouteName() }}' == 'course',
   }"
   class="
     h-full
@@ -92,10 +92,10 @@ mount(function() {
         @foreach ($courses as $item)
         <a wire:navigate.hover href="/course/{{ $item->shortname }}" class="flex items-center w-full py-3 pl-6 rounded-xl transition-all mb-1 pr-2 group">
           <x-icons.dot
-            class="{{ Route::currentRouteName() == 'course' ? 'fill-primary-dark' : 'fill-grey-600' }} group-hover:fill-primary-dark"
+            class="{{ str_contains(url()->current(), $item->shortname) ? 'fill-primary-dark' : 'fill-grey-600' }} group-hover:fill-primary-dark"
           />
           <span
-            class="{{ Route::currentRouteName() == 'course' ? 'text-primary-dark font-semibold' : 'font-medium text-grey-600' }} ml-5 text-sm font-medium text-left group-hover:text-primary-dark group-hover:font-semibold"
+            class="{{ str_contains(url()->current(), $item->shortname) ? 'text-primary-dark font-semibold' : 'font-medium text-grey-600' }} ml-5 text-sm font-medium text-left group-hover:text-primary-dark group-hover:font-semibold"
           >
             {{ $item->fullname }}
           </span>

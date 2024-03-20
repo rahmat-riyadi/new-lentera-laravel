@@ -3,7 +3,14 @@
     <head>
         <meta charset="utf-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>{{ $title ?? 'Page Title' }}</title>
+        <title>{{ $title ?? 'Lentera' }}</title>
+        <link rel="apple-touch-icon" sizes="180x180" href="{{ asset('assets/favico/apple-touch-icon.png') }}">
+        <link rel="icon" type="image/png" sizes="32x32" href="{{ asset('/assets/favico/favicon-32x32.png') }}">
+        <link rel="icon" type="image/png" sizes="16x16" href="{{ asset('/assets/favico/favicon-16x16.png') }}">
+        <link rel="manifest" href="{{ asset('/assets/favico/site.webmanifest') }}">
+        <link rel="mask-icon" href="{{ asset('/assets/favico/safari-pinned-tab.svg') }}" color="#5bbad5">
+        <meta name="msapplication-TileColor" content="#da532c">
+        <meta name="theme-color" content="#ffffff">
         <script defer src="https://cdn.jsdelivr.net/npm/@alpinejs/mask@3.x.x/dist/cdn.min.js"></script>
         <script src="https://cdn.tiny.cloud/1/mfwsl4xdczczqoigmfie0vd3tce8jna9eg7g5sq74qglzaz4/tinymce/6/tinymce.min.js" referrerpolicy="origin"></script>
         @include('partials.fontface')

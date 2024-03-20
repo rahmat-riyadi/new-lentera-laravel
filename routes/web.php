@@ -33,7 +33,7 @@ Route::get('/', function () {
     return view('pages.index');
 })->middleware('auth');
 
-Route::group(['prefix' => 'course'], function(){
+Route::group(['prefix' => 'course', 'as' => 'course'], function(){
     Route::get('/{course:shortname}', [CourseController::class, 'index']);
 
     Route::group(['prefix' => '{course:shortname}/activity'], function(){

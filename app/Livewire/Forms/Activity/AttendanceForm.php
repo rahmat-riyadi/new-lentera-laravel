@@ -89,7 +89,7 @@ class AttendanceForm extends Form
             ->where('mdl_enrol.courseid', '=', $this->course->id)
             ->where('mdl_enrol.roleid', '=', $role->id)
             ->where('mdl_user_enrolments.userid', '!=', auth()->user()->id)
-            ->join('mdl_user_enrolments', 'mdl_user_enrolments.enrolid', 'mdl_enrol.id')
+            ->join('mdl_user_enrolments', 'mdl_user_enrolments.enrolid', '=', 'mdl_enrol.id')
             ->join('mdl_user', 'mdl_user.id', 'mdl_user_enrolments.userid')
             ->select('mdl_user.id')->get();
 
