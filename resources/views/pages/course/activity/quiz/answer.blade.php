@@ -198,7 +198,7 @@ on(['submit-essay' => 'handle_submit_essay']);
 <x-layouts.app>
     @volt
     <div
-        class="h-full overflow-y-auto relative"
+        class="h-screen md:h-full overflow-y-auto relative"
     >
 
         <x-activity-subheader 
@@ -208,8 +208,26 @@ on(['submit-essay' => 'handle_submit_essay']);
             :section="$section"
         />
 
-        <div class="p-8 flex gap-4 relative">
-            <div class="bg-white p-3 h-fit order-2 w-fit rounded-lg py-4 sticky right-8 top-8">
+        <div class="p-8 flex flex-col md:flex-row gap-4 relative">
+            <div class="bg-white p-4 rounded-xl md:hidden block sticky top-4 shadow" >
+                <p class="font-semibold mr-auto" >Navigasi Soal</p>
+                <div class="flex mt-4 items-center" >
+                    <button>
+                        <img src="{{ asset('assets/icons/arrow-right-flat.svg') }}" alt="">
+                    </button>
+                    <div class="grow flex gap-x-4 overflow-x-scroll snap-mandatory no-scrollbar mx-2" >
+                        @foreach ($navigationNumber as $q => $navNum)
+                        <button wire:click="jump_to('{{ $navNum['loc'] }}')" class="chip h-[40px] w-[40px] aspect-square rounded-lg border-[1.5px]  bg-gray-400/5 {{ ($currentPage) == ($navNum['loc']) ? 'border-secodary' : '' }} {{ $navNum['is_done'] ? 'attend border-primary': '' }} snap-start" type="button" >
+                            {{ $loop->index + 1 }}
+                        </button>
+                        @endforeach
+                    </div>
+                    <button class="rotate-180" >
+                        <img src="{{ asset('assets/icons/arrow-right-flat.svg') }}" alt="">
+                    </button>
+                </div>
+            </div>
+            <div class="bg-white p-3 h-fit order-2 w-fit hidden md:block rounded-lg py-4 sticky right-8 top-8">
                 <p class="mb-3 font-medium" >Navigasi Soal</p>
                 <div class="grid grid-cols-5 gap-3" >
                     @foreach ($navigationNumber as $q => $navNum)
@@ -237,9 +255,9 @@ on(['submit-essay' => 'handle_submit_essay']);
             </div>
             <div wire:loading.remove wire:target="submit, jump_to" class="flex-1 order-1">
                 @foreach ($questions as $i => $question)
-                <div  class="flex mb-4 gap-4">
-                    <div class="bg-white h-fit border-[1.5px] p-4 text-sm w-[140px] rounded-lg">
-                        <p class="font-semibold mb-2" >Soal {{ $i + ($quiz->question_show_number * $currentPage - 1) }}</p>
+                <div  class="flex flex-col md:flex-row mb-4 gap-4">
+                    <div class="bg-white h-full border-[1.5px] p-4 text-sm md:w-[140px] rounded-lg">
+                        <p class="font-semibold mb-2" >Soal {{ $i + ($quiz->question_show_number * $currentPage - 1) - 1 }}</p>
                         <p >Point {{ str_replace('.',',',$question->point) }} dari 20,00</p>
                     </div>
                     <div class="bg-white flex-1 p-6 rounded-lg">

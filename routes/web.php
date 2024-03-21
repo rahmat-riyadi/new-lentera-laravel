@@ -31,7 +31,7 @@ Route::get('/login', function(){
 
 Route::get('/', function () {
     return view('pages.index');
-})->middleware('auth');
+})->middleware('auth')->name('home');
 
 Route::group(['prefix' => 'course', 'as' => 'course'], function(){
     Route::get('/{course:shortname}', [CourseController::class, 'index']);

@@ -154,11 +154,43 @@ $delete_section = function ($id){
 };
 
 $delete_activity = function ($id){
-    $cm = CourseModule::find($id);
-    $cm->update(['deletioninprogress' => 1]);
-    GlobalHelper::rebuildCourseCache($this->course->id);
-    $this->get_sections($this->course);
-    $this->dispatch('notify', 'success', 'Berhasil menghapus aktivitas');
+
+    DB::beginTransaction();
+
+    try {
+        $cm = CourseModule::find($id);
+        $selectedModule = Module::find($cm->module);
+        switch ($selectedModule->name) {
+            case 'url':
+                $mod_table = 'url';
+                break;
+            case 'resource':
+                $mod_table = 'resource';
+                break;
+            case 'attendance':
+                $mod_table = 'attendances';
+                break;
+            case 'assign':
+                $mod_table = 'assignments';
+                break;
+            case 'quiz':
+                $mod_table = 'quizzes';
+                break;
+        }
+        DB::table($mod_table)
+        ->where('id', $cm->instance)
+        ->delete();
+        $cm->update(['deletioninprogress' => 1]);
+        GlobalHelper::rebuildCourseCache($this->course->id);
+        $this->get_sections($this->course);
+        DB::commit();
+        $this->dispatch('notify', 'success', 'Berhasil menghapus aktivitas');
+    } catch (\Throwable $th) {
+        DB::rollBack();
+        Log::info($th->getMessage());
+        $this->dispatch('notify', 'error', 'Terjadi Kesalahan');
+    }
+
 };
 
 on(['delete-section' => 'delete_section']);

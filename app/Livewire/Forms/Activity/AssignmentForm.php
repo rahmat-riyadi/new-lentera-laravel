@@ -80,6 +80,7 @@ class AssignmentForm extends Form
         $this->fill([
             'name' => $assignment->name,
             'description' => $assignment->description,
+            'activity_remember' => $assignment->activity_remember,
         ]);
 
         $start_date = Carbon::parse($assignment->start_date);
@@ -130,6 +131,7 @@ class AssignmentForm extends Form
                 'description' => $this->description,
                 'due_date' => $due_date,
                 'start_date' => $start_date,
+                'activity_remember' => $this->activity_remember,
             ]);
 
             if($this->submission_type == 'onlinetext'){
@@ -186,6 +188,7 @@ class AssignmentForm extends Form
                 'description' => $this->description,
                 'start_date' => $start_date,
                 'due_date' => $due_date,
+                'activity_remember' => $this->activity_remember,
             ]);
 
             $this->assignment->configs()->delete();

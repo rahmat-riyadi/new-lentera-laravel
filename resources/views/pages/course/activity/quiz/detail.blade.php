@@ -106,7 +106,7 @@ mount(function (Course $course,CourseSection $section, Quiz $quiz){
     @volt
     <div
         x-data="{ tab: 'question' }"
-        class="h-full overflow-y-auto relative"
+        class="h-screen md:h-full overflow-y-auto relative"
     >
         <x-activity-subheader 
             path="/course/{{ $course->shortname }}" 
@@ -177,7 +177,7 @@ mount(function (Course $course,CourseSection $section, Quiz $quiz){
                         <tr>
                             <td>
                                 <div class="flex items-center" >
-                                    <img src="/images/avatar.jpg" class="w-[40px] h-[40px] rounded-full object-cover mr-3" alt="">
+                                    <img src="{{ asset('/assets/images/avatar.webp') }}" class="w-[40px] h-[40px] rounded-full object-cover mr-3" alt="">
                                     <div>
                                         <p class="mb-1">{{ $student->fullname }}</p>
                                         <span class="text-grey-500 " >{{ $student->nim }}</span>

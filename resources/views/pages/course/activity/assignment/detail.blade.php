@@ -86,7 +86,7 @@ mount(function (Course $course,CourseSection $section, Assignment $assignment){
 
 <x-layouts.app>
     @volt
-    <div class="h-full overflow-y-auto" >
+    <div class="h-screen md:h-full overflow-y-auto" >
         <x-activity-subheader 
             path="/course/{{ $course->shortname }}" 
             title="Detail Penugasan"
@@ -196,18 +196,24 @@ mount(function (Course $course,CourseSection $section, Assignment $assignment){
             <div class="bg-white p-5 rounded-xl">
                 <h3 class="font-semibold text-lg mb-2" >{{ $assignment->name }}</h3>
                 <p class="text-grey-700 text-sm" > {!! $assignment->description !!}</p>
-                <table class="w-full font-medium mt-4" >
+                <table class="w-full font-normal md:font-medium mt-4" >
                     <tr>
-                        <td style="width: 210px; height: 37px;" class="text-grey-500 text-sm" >Batas Waktu</td>
-                        <td class="text-[#121212] text-sm" >: {{ Carbon\Carbon::parse($assignment->due_date)->translatedFormat('d F Y, H:i') }}</td>
+                        <td style="height: 37px;" class="text-grey-500 text-sm  md:w-[210px]" >Batas Waktu</td>
+                        <td class="text-[#121212] text-sm" > <span class="mr-1" >:</span> {{ Carbon\Carbon::parse($assignment->due_date)->translatedFormat('d F Y') }}</td>
                     </tr>
                     <tr>
-                        <td style="width: 210px; height: 37px;" class="text-grey-500 text-sm" >Waktu Tersisa</td>
-                        <td class="text-[#121212] text-sm" >: {{ Carbon\Carbon::parse($assignment->due_date)->diffForHumans(['parts' => 2]) }}</td>
+                        @php
+                            $end_time = \Carbon\Carbon::parse($assignment->due_date);
+                            $now = \Carbon\Carbon::now();
+                            // $diff = $end_time->diffInSeconds($start_time);
+                        @endphp
+                        <td style="height: 37px;" class="text-grey-500 text-sm  md:w-[210px]" >Waktu Tersisa</td>
+                        <td class="text-[#121212] text-sm" > <span class="mr-1" >:</span> {{ Carbon\Carbon::parse($assignment->due_date)->diff()->format('%H Jam %i Menit') }}</td>
                     </tr>
                     <tr>
-                        <td style="width: 210px; height: 37px;" class="text-grey-500 text-sm" >Status</td>
-                        <td class="text-[#121212] text-sm" >: 
+                        <td style="height: 37px;" class="text-grey-500 text-sm  md:w-[210px]" >Status</td>
+                        <td class="text-[#121212] text-sm" >
+                            <span class="mr-1" >:</span>
                             @if (!empty($student_submission))
                             <span class="chip px-3 py-1 text-xs rounded-md attend" >Dikumpulkan</span>
                             @else
@@ -216,8 +222,9 @@ mount(function (Course $course,CourseSection $section, Assignment $assignment){
                         </td>
                     </tr>
                     <tr>
-                        <td style="width: 210px; height: 37px;" class="text-grey-500 text-sm" >Penilaian</td>
-                        <td class="text-[#121212] text-sm" >: 
+                        <td style=" height: 37px;" class="text-grey-500 text-sm md:w-[210px]" >Penilaian</td>
+                        <td class="text-[#121212] text-sm" >
+                            <span class="mr-1" >:</span>
                             @if (!empty($student_submission->grade))
                             <span class="chip px-2 py-1  rounded-md attend" > {{ $student_submission->grade }} </span>
                             @else
@@ -227,7 +234,7 @@ mount(function (Course $course,CourseSection $section, Assignment $assignment){
                     </tr>
                 </table>
                 <div class="h-4" ></div>
-                <a wire:navigate.hover href="/student/assignment/{{ $assignment->id }}/submit" class="btn btn-outlined">Ajukan Penugasan</a>
+                <a wire:navigate.hover href="/student/assignment/{{ $assignment->id }}/submit" class="btn btn-outlined text-center inline-block w-full md:w-fit">Ajukan Penugasan</a>
             </div>    
             @endif
         </div>

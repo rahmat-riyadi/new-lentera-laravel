@@ -111,7 +111,7 @@ $submit = function (){
 
 <x-layouts.app>
     @volt
-    <div class="h-full overflow-y-auto" >
+    <div class="h-screen md:h-full overflow-y-auto" >
         <x-activity-subheader 
             path="/course/{{ $course->shortname }}" 
             title="Detail Penugasan"
@@ -122,8 +122,9 @@ $submit = function (){
         <div class="p-8">
             <div class="bg-white p-5 rounded-xl">
                 @if ($type == 'file')
+                    <span class="label inline-block mb-2" >Masukkan File</span>
                     <label for="file" class="bg-grey-100 flex justify-center py-6 rounded-md cursor-pointer" >
-                        <div class="flex items-center" >
+                        <div class="flex items-center px-3" >
                             <img src="{{ asset('assets/icons/upload-file.svg') }}" alt=""/>
                             <div class="ml-4" >
                                 <p class="font-medium mb-1" >Drag and drop a file here or click</p>
@@ -166,11 +167,11 @@ $submit = function (){
                         @enderror
                     </label>
                 @endif
-                <div class="flex justify-end gap-3 mt-4" >
-                    <a wire:navigate.hover href="/course/{{ $course->shortname }}/activity/assignment/detail/{{ $courseModule->id }}" class="btn btn-light" >
+                <div class="flex justify-end gap-3 mt-2" >
+                    <a wire:navigate.hover href="/course/{{ $course->shortname }}/activity/assignment/detail/{{ $courseModule->id }}" class="btn btn-light inline-block grow text-center md:block md:grow-0" >
                         Batal
                     </a>
-                    <x-button wire:click="submit"  >
+                    <x-button wire:click="submit" class="inline-block text-center md:block md:grow-0" >
                         Simpan Penugasan
                     </x-button>
                 </div>

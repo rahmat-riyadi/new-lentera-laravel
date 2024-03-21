@@ -134,6 +134,31 @@ class QuizForm extends Form
                 'activity_remember' => $this->activity_remember ?? null,
             ]);
 
+            $role = Role::where('shortname', 'student')->first();
+
+            $participantsData = DB::connection('moodle_mysql')
+            ->table('mdl_enrol')
+            ->where('mdl_enrol.courseid', '=', $this->course->id)
+            ->where('mdl_enrol.roleid', '=', $role->id)
+            ->where('mdl_user_enrolments.userid', '!=', auth()->user()->id)
+            ->join('mdl_user_enrolments', 'mdl_user_enrolments.enrolid', 'mdl_enrol.id')
+            ->join('mdl_user', 'mdl_user.id', 'mdl_user_enrolments.userid')
+            ->select('mdl_user.id')->get();
+
+            foreach($participantsData as $participant){
+                StudentQuiz::updateOrCreate(
+                    [
+                        'student_id' => $participant->id,
+                        'quiz_id' => $instance->id
+                    ],
+                    [
+                        'student_id' => $participant->id,
+                        'quiz_id' => $instance->id
+                    ],
+                );   
+            }
+
+
             $cm = CourseHelper::addCourseModule($this->course->id, $this->module->id, $instance->id);
             CourseHelper::addContext($cm->id, $this->course->id);
             CourseHelper::addCourseModuleToSection($this->course->id, $cm->id, $this->section_num);

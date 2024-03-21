@@ -33,11 +33,11 @@ mount(function() {
     min-w-[260px]
     absolute
     z-10
-    md:static
+    lg:static
     flex
     flex-col
     side-bar-shadow
-    md:translate-x-0
+    lg:translate-x-0
     -translate-x-full
     duration-300
     transition-all

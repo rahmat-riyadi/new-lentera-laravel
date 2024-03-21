@@ -1,5 +1,5 @@
 <div class="flex flex-col transition-all" >
-    <img src="{{ asset('assets/icons/course-header.svg') }}" alt="">
+    <img class="rounded-t-lg" style="object-fit: cover; object-position: center;" src='{{ asset("assets/images/card-header/Gambar-$idx.svg") }}' alt="">
     <div class="p-3 pt-2" >
       <div class="flex justify-between items-center" >
         <p class="text-grey-500 text-sm" >{{ $studyProgram }}</p>
