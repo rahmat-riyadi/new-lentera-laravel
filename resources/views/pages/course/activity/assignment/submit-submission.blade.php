@@ -166,6 +166,7 @@ $submit = function (){
                         <span class="text-error mt-3 text-sm" >{{ 'Url tidak boleh kosong' }}</span>
                         @enderror
                     </label>
+                    <div class="h-3" ></div>
                 @endif
                 <div class="flex justify-end gap-3 mt-2" >
                     <a wire:navigate.hover href="/course/{{ $course->shortname }}/activity/assignment/detail/{{ $courseModule->id }}" class="btn btn-light inline-block grow text-center md:block md:grow-0" >

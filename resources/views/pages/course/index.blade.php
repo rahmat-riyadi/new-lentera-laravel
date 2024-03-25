@@ -11,9 +11,10 @@ use App\Models\{
     Resource,
     Assign,
     Context,
+    Role
 };
 state([
-    'sections', 'course', 'topic', 'role'
+    'sections', 'course', 'topic', 'role', 'participants', 'teacher'
 ]);
 
 mount(function(Course $course){
@@ -30,6 +31,46 @@ mount(function(Course $course){
     $this->topic = new stdClass();
     $this->get_sections($course);
     $this->course = $course;
+
+    $context = Context::where('instanceid', $course->id)
+    ->where('contextlevel', 50)
+    ->first();
+
+    $participantsData = DB::connection('moodle_mysql')
+    ->table('mdl_role_assignments as ra')
+    ->where('contextid', $context->id)
+    ->join('mdl_user as u', 'u.id', '=', 'ra.userid')
+    ->join('mdl_role as r', 'r.id', '=', 'ra.roleid')
+    ->select(
+        'u.id',
+        DB::raw("CONCAT(u.firstname,' ',u.lastname) as fullname"),
+        'u.username as nim',
+        'u.email as email',
+        'r.shortname as role',
+        DB::raw("
+            (
+                SELECT
+                f.contenthash
+                FROM
+                mdl_files f
+                INNER JOIN mdl_context c ON f.contextid = c.id
+                WHERE
+                f.component = 'user'
+                AND f.filearea = 'icon'
+                AND c.contextlevel = 30
+                AND c.instanceid = u.id
+                ORDER BY f.timecreated DESC
+                LIMIT 1
+            ) AS ctx
+        ")
+    )->get();
+
+    $this->teacher = $participantsData->first(fn($e) => $e->role == 'editingteacher');
+    $this->participants = $participantsData->filter(fn($e) => $e->role != 'editingteacher')->toArray();
+
+
+
+
 });
 
 $get_sections = function ($course){
@@ -222,171 +263,252 @@ on(['delete-module' => 'delete_activity']);
                     <VerticalMoreSvg/>
                 </button> --}}
             </div>
+            @if ($role != 'student')
             <div class="flex mt-4" >
-                {{-- <button wire:click="$set('currTab', 'progress')" class="flex items-center {{ $currTab == 'progress' ? 'border-b-[3px]' : 'border-0' }} border-primary pb-2 px-1 transition-all " >
-                    <x-icons.chart class="{{ $currTab == 'progress' ? 'fill-[#09244B]' : 'fill-grey-400' }} w-5 transition-all" />
-                    <p class="font-medium {{ $currTab == 'progress' ? 'text-black' : 'text-grey-400' }}  ml-2 text-sm transition-all" >Progres</p>
+                <button  @click="tab = 'proggress'" :class=" tab == 'proggress' ? 'border-b-[3px]' : 'border-0' " class="flex items-center border-primary pb-2 px-1 transition-all " >
+                    <template x-if="tab == 'proggress'" >
+                        <x-icons.chartbar  class=" fill-[#09244B] w-5 transition-all" />
+                    </template>
+                    <template x-if="tab != 'proggress'" >
+                        <x-icons.chartbar  class=" fill-grey-400 w-5 transition-all" />
+                    </template>
+                    <p :class="tab == 'proggress' ? 'text-black' : 'text-grey-400' " class="font-medium  ml-2 text-sm transition-all" >Progres</p>
                 </button>
-                <button wire:click="$set('currTab', 'value')" class="flex items-center border-primary {{ $currTab == 'value' ? 'border-b-[3px]' : 'border-0' }} pb-2 px-1 mx-6 transition-all" >
-                    <x-icons.coin class="{{  $currTab == 'value' ? 'fill-[#09244B]' : 'fill-grey-400'  }} transition-all w-5 " />
-                    <p class="font-medium  {{ $currTab == 'value' ? 'text-black' : 'text-grey-400' }} transition-all ml-2 text-sm " >Nilai</p>
+                <button @click="tab = 'value'" :class=" tab == 'value' ? 'border-b-[3px]' : 'border-0' " class="flex items-center border-primary pb-2 px-1 mx-6 transition-all" >
+                    <template x-if="tab == 'value'" >
+                        <x-icons.coin  class=" fill-[#09244B] w-5 transition-all" />
+                    </template>
+                    <template x-if="tab != 'value'" >
+                        <x-icons.coin class="fill-grey-400 transition-all w-5 " />
+                    </template>
+                    <p :class="tab == 'value' ? 'text-black' : 'text-grey-400' " class="font-medium  transition-all ml-2 text-sm " >Nilai</p>
                 </button>
-                <button wire:click="$set('currTab', 'parcitipants')" class="flex items-center border-primary {{ $currTab == 'parcitipants' ? 'border-b-[3px]' : 'border-0' }} pb-2 px-1 transition-all" >
-                    <x-icons.user-fill class="{{  $currTab == 'parcitipants' ? 'fill-[#09244B]' : 'fill-grey-400'  }} transition-al w-[22px]" />
-                    <p class="font-medium {{  $currTab == 'parcitipants' ? 'text-black' : 'text-grey-400'  }} transition-all ml-2 text-sm" >Peserta</p>
-                </button> --}}
+                <button @click="tab = 'participants'" :class=" tab == 'participants' ? 'border-b-[3px]' : 'border-0' " class="flex items-center border-primary pb-2 px-1 transition-all" >
+                    <template x-if="tab == 'participants'" >
+                        <x-icons.user-fill  class=" fill-[#09244B] w-5 transition-all" />
+                    </template>
+                    <template x-if="tab != 'participants'" >
+                        <x-icons.user-fill class="fill-grey-400 transition-all w-5 " />
+                    </template>
+                    <p :class="tab == 'participants' ? 'text-black' : 'text-grey-400' " class="font-mediumtransition-all ml-2 text-sm" >Peserta</p>
+                </button>
             </div>
+            @endif
         </div>
 
         <div class="px-8">
-
-            <div
-                class="flex items-start overflow-hidden bg-white px-8 py-4 rounded-xl my-6 transition-[height] duration-1000"
-                :class="!showAnnouncement ? 'h-[80px]' : 'h-fit'"
-                style="box-shadow: 0px 3px 6px 0px rgba(16, 24, 40, 0.10);" 
-            >
-                <img src="{{ asset('/assets/icons/pengumuman.svg') }}" alt="">
-                <div class="pt-3 flex flex-col w-full" >
-                    <template x-if="showAnnouncement">
-                        <input type="text" class="focus:placeholder:visible peer font-medium ml-4 caret-primary focus:bg-transparent  focus:outline-none" placeholder="Judul"  autofocus>
-                    </template>    
-                    <template x-if="!showAnnouncement">
-                        <p class="ml-4 font-medium text-grey-700 " >Umumkan sesuatu di Kelas anda</p>
-                    </template>    
-                    <textarea 
-                        placeholder="keterangan" 
-                        class="
-                            placeholder:invisible 
-                            resize-none 
-                            peer-focus:placeholder:visible  
-                            ml-4 
-                            mt-2 
-                            text-sm 
-                            focus:outline-none 
-                            caret-primary 
-                            focus:border-none
-                        "
-                        :class="showAnnouncement ? 'visible' : 'invisible'"
-                        cols="30" 
-                        rows="5"
-                    ></textarea>
-                </div>
-            </div>
-
-            @foreach ($sections as $i => $section)
-            <div class="bg-white px-8 py-5 rounded-xl mb-3" >
-                <div class="flex">
-                    <p class="font-semibold text-lg mr-1" >
-                        @if (empty($section->name))
-                        {{ $i == 0 ? 'General' : 'Topic '. $i }} 
-                        @else
-                        {{ $section->name  }}
-                        @endif
-                    </p>
-                    @if ($role != 'student')
-                    <button @click="topic.edit(@js($section->id),@js($section->name))" >
-                        <img src="{{ asset('assets/icons/edit-2.svg') }}" alt="">
-                    </button>
-                    <button @click="activity.show(@js($section->section))" class="btn-icon-light w-8 h-8 ml-auto hidden md:flex" >
-                        <x-icons.plus class="w-4 fill-primary" />
-                    </button>
-                    <div class="relative" >
-                        <button :class="{ 'bg-gray-200': dropdownSection.includes(@js($section->id)) }" @click="toggleDropdownSection(@js($section->id))" class="w-8 h-8 ml-2 hidden md:flex group rounded" >
-                            <x-icons.more-svg class="fill-primary" />
-                        </button>
-                        <ul
-                            x-show="dropdownSection.includes(@js($section->id))"
-                            x-transition:enter="transition ease duration-300"
-                            x-transition:enter-start="opacity-0 scale-75 translate-y-2"
-                            x-transition:enter-end="opacity-100 translate-y-0 scale-100"
-                            x-transition:leave="transition ease duration-300"
-                            x-transition:leave-start="opacity-100 scale-100 translate-y-0"
-                            x-transition:leave-end="opacity-0 translate-y-2 scale-75"
-                            class="absolute w-[200px] z-10 mt-2 bg-white rounded-lg py-3 px-3 right-0 top-6 shadow-[0_8px_30px_rgb(0,0,0,0.12)] transform group-hover:opacity-100 group-hover:scale-y-100"
-                        >
-                            <li @click="deleteTopic(@js($section->id))" class="text-xs cursor-pointer rounded-lg hover:bg-grey-100 px-3 py-2 text-left" >
-                                Hapus Pertemuan
-                            </li>
-                        </ul>
+            <div x-show="tab == 'proggress'" >
+                <div
+                    class="flex items-start overflow-hidden bg-white px-8 py-4 rounded-xl my-6 transition-[height] duration-1000"
+                    :class="!showAnnouncement ? 'h-[80px]' : 'h-fit'"
+                    style="box-shadow: 0px 3px 6px 0px rgba(16, 24, 40, 0.10);" 
+                >
+                    <img src="{{ asset('/assets/icons/pengumuman.svg') }}" alt="">
+                    <div class="pt-3 flex flex-col w-full" >
+                        <template x-if="showAnnouncement">
+                            <input type="text" class="focus:placeholder:visible peer font-medium ml-4 caret-primary focus:bg-transparent  focus:outline-none" placeholder="Judul"  autofocus>
+                        </template>    
+                        <template x-if="!showAnnouncement">
+                            <p class="ml-4 font-medium text-grey-700 " >Umumkan sesuatu di Kelas anda</p>
+                        </template>    
+                        <textarea 
+                            placeholder="keterangan" 
+                            class="
+                                placeholder:invisible 
+                                resize-none 
+                                peer-focus:placeholder:visible  
+                                ml-4 
+                                mt-2 
+                                text-sm 
+                                focus:outline-none 
+                                caret-primary 
+                                focus:border-none
+                            "
+                            :class="showAnnouncement ? 'visible' : 'invisible'"
+                            cols="30" 
+                            rows="5"
+                        ></textarea>
                     </div>
-                    @endif
                 </div>
-                @foreach ($section->modules as $mod_idx => $module)
-                @php
-                    switch ($module->modname) {
-                        case 'quiz':
-                            $icon = asset('assets/icons/kuis.svg');
-                            $detail_url = "/course/{$course->shortname}/activity/quiz/detail/{$module->id}";
-                            break;
-                        case 'url':
-                            $icon = asset('assets/icons/url.svg');
-                            $detail_url = "";
-                            break;
-                        case 'assign':
-                            $icon = asset('assets/icons/penugasan.svg');
-                            $detail_url = "/course/{$course->shortname}/activity/assignment/detail/{$module->id}";
-                            break;
-                        case 'attendance':
-                            $icon = asset('assets/icons/kehadiran.svg');
-                            $detail_url = "/course/{$course->shortname}/activity/attendance/detail/{$module->id}";
-                            break;
-                        case 'resource':
-                            $icon = asset('assets/icons/berkas_md.svg');
-                            $detail_url = "";
-                            break;
-                    }
-                @endphp
-                <div class="flex border hover:bg-grey-100 items-center border-grey-300 p-5 rounded-xl mt-5" >
-                    <img src="{{ $icon }}" class="mr-3 w-10" alt="">
-                    <div>
-                        @switch($module->modname)
-                            @case('url')
-                                <a target="blank" href="{{ $module->url }}" class="text-sm font-semibold mb-1" >
-                                    {{ $module->name }}
-                                </a>
-                                @break
-                            @case('resource')
-                                <a target="blank" href="{{ $module->file }}" class="text-sm font-semibold mb-1" >
-                                    {{ $module->name }}
-                                </a>
-                                @break
-                            @default
-                            <a wire:navigate href="{{ $detail_url }}" class="text-sm font-semibold mb-1" >
-                                {{ $module->name }}
-                            </a>
-                        @endswitch
-                        <div class="text-sm" >
-                            {!! $module->description !!}
+    
+                @foreach ($sections as $i => $section)
+                <div class="bg-white px-8 py-5 rounded-xl mb-3" >
+                    <div class="flex">
+                        <p class="font-semibold text-lg mr-1" >
+                            @if (empty($section->name))
+                            {{ $i == 0 ? 'General' : 'Topic '. $i }} 
+                            @else
+                            {{ $section->name  }}
+                            @endif
+                        </p>
+                        @if ($role != 'student')
+                        <button @click="topic.edit(@js($section->id),@js($section->name))" >
+                            <img src="{{ asset('assets/icons/edit-2.svg') }}" alt="">
+                        </button>
+                        <button @click="activity.show(@js($section->section))" class="btn-icon-light w-8 h-8 ml-auto hidden md:flex" >
+                            <x-icons.plus class="w-4 fill-primary" />
+                        </button>
+                        <div class="relative" >
+                            <button :class="{ 'bg-gray-200': dropdownSection.includes(@js($section->id)) }" @click="toggleDropdownSection(@js($section->id))" class="w-8 h-8 ml-2 hidden md:flex group rounded" >
+                                <x-icons.more-svg class="fill-primary" />
+                            </button>
+                            <ul
+                                x-show="dropdownSection.includes(@js($section->id))"
+                                x-transition:enter="transition ease duration-300"
+                                x-transition:enter-start="opacity-0 scale-75 translate-y-2"
+                                x-transition:enter-end="opacity-100 translate-y-0 scale-100"
+                                x-transition:leave="transition ease duration-300"
+                                x-transition:leave-start="opacity-100 scale-100 translate-y-0"
+                                x-transition:leave-end="opacity-0 translate-y-2 scale-75"
+                                class="absolute w-[200px] z-10 mt-2 bg-white rounded-lg py-3 px-3 right-0 top-6 shadow-[0_8px_30px_rgb(0,0,0,0.12)] transform group-hover:opacity-100 group-hover:scale-y-100"
+                            >
+                                <li @click="deleteTopic(@js($section->id))" class="text-xs cursor-pointer rounded-lg hover:bg-grey-100 px-3 py-2 text-left" >
+                                    Hapus Pertemuan
+                                </li>
+                            </ul>
                         </div>
+                        @endif
                     </div>
-                    @if ($role != 'student')
-                    <div class="relative ml-auto">
-                        <button type="button" @click="toggleDropdownModule({{ $module->id }})" class="w-8 h-8 ml-auto" >
-                            <x-icons.more-svg class="fill-primary" />
-                        </button>
-                        <ul
-                            x-show="dropdownModule.includes({{ $module->id }})"
-                            x-transition:enter="transition ease duration-300"
-                            x-transition:enter-start="opacity-0 translate-y-2"
-                            x-transition:enter-end="opacity-100 translate-y-0"
-                            x-transition:leave="transition ease duration-300"
-                            x-transition:leave-start="opacity-100 translate-y-0"
-                            x-transition:leave-end="opacity-0 translate-y-2"
-                            class="absolute w-[200px] z-10 mt-2 bg-white rounded-lg py-3 px-3 right-0 top-6 shadow-[0_8px_30px_rgb(0,0,0,0.12)] transform group-hover:opacity-100 group-hover:scale-y-100">
-                            <li @click="editModule(@js($module->modname), {{ $module->instance }}, {{ $section->section }})" class="text-xs cursor-pointer rounded-lg hover:bg-grey-100 px-3 py-2 text-left" >
-                                Edit Aktivitas
-                            </li>
-                            <li @click="deleteModule({{ $module->id }})" class="text-xs cursor-pointer rounded-lg hover:bg-grey-100 px-3 py-2 text-left" >
-                                Hapus Aktivitas
-                            </li>
-                        </ul>
+                    @foreach ($section->modules as $mod_idx => $module)
+                    @php
+                        switch ($module->modname) {
+                            case 'quiz':
+                                $icon = asset('assets/icons/kuis.svg');
+                                $detail_url = "/course/{$course->shortname}/activity/quiz/detail/{$module->id}";
+                                break;
+                            case 'url':
+                                $icon = asset('assets/icons/url.svg');
+                                $detail_url = "";
+                                break;
+                            case 'assign':
+                                $icon = asset('assets/icons/penugasan.svg');
+                                $detail_url = "/course/{$course->shortname}/activity/assignment/detail/{$module->id}";
+                                break;
+                            case 'attendance':
+                                $icon = asset('assets/icons/kehadiran.svg');
+                                $detail_url = "/course/{$course->shortname}/activity/attendance/detail/{$module->id}";
+                                break;
+                            case 'resource':
+                                $icon = asset('assets/icons/berkas_md.svg');
+                                $detail_url = "";
+                                break;
+                        }
+                    @endphp
+                    <div class="flex border hover:bg-grey-100 items-center border-grey-300 p-5 rounded-xl mt-5" >
+                        <img src="{{ $icon }}" class="mr-3 w-10" alt="">
+                        <div>
+                            @switch($module->modname)
+                                @case('url')
+                                    <a target="blank" href="{{ $module->url }}" class="text-sm font-semibold mb-1" >
+                                        {{ $module->name }}
+                                    </a>
+                                    @break
+                                @case('resource')
+                                    <a target="blank" href="{{ $module->file }}" class="text-sm font-semibold mb-1" >
+                                        {{ $module->name }}
+                                    </a>
+                                    @break
+                                @default
+                                <a wire:navigate href="{{ $detail_url }}" class="text-sm font-semibold mb-1" >
+                                    {{ $module->name }}
+                                </a>
+                            @endswitch
+                            <div class="text-sm" >
+                                {!! $module->description !!}
+                            </div>
+                        </div>
+                        @if ($role != 'student')
+                        <div class="relative ml-auto">
+                            <button type="button" @click="toggleDropdownModule({{ $module->id }})" class="w-8 h-8 ml-auto" >
+                                <x-icons.more-svg class="fill-primary" />
+                            </button>
+                            <ul
+                                x-show="dropdownModule.includes({{ $module->id }})"
+                                x-transition:enter="transition ease duration-300"
+                                x-transition:enter-start="opacity-0 translate-y-2"
+                                x-transition:enter-end="opacity-100 translate-y-0"
+                                x-transition:leave="transition ease duration-300"
+                                x-transition:leave-start="opacity-100 translate-y-0"
+                                x-transition:leave-end="opacity-0 translate-y-2"
+                                class="absolute w-[200px] z-10 mt-2 bg-white rounded-lg py-3 px-3 right-0 top-6 shadow-[0_8px_30px_rgb(0,0,0,0.12)] transform group-hover:opacity-100 group-hover:scale-y-100">
+                                <li @click="editModule(@js($module->modname), {{ $module->instance }}, {{ $section->section }})" class="text-xs cursor-pointer rounded-lg hover:bg-grey-100 px-3 py-2 text-left" >
+                                    Edit Aktivitas
+                                </li>
+                                <li @click="deleteModule({{ $module->id }})" class="text-xs cursor-pointer rounded-lg hover:bg-grey-100 px-3 py-2 text-left" >
+                                    Hapus Aktivitas
+                                </li>
+                            </ul>
+                        </div>
+                        @endif
                     </div>
-                    @endif
+                    @endforeach
                 </div>
                 @endforeach
             </div>
-            @endforeach
+    
+            <div x-show="tab == 'value'" >
+                <div class="bg-white px-8 py-6 my-6">
+                    <div class="flex mb-4">
+                        <select name="" class="text-field w-[120px] ml-auto rounded " id="">
+                            <option value="">Semua</option>
+                            <option value="">Tugas</option>
+                            <option value="">Quiz</option>
+                        </select>
+                    </div>
+                    <div wire:ignore >
+                        <div class="ag-theme-quartz" style="height: 70vh;" id="grade-grid"></div>
+                    </div>
+                </div>
+            </div>
+
+            <div x-show="tab == 'participants'" >
+                <div class="bg-white rounded-xl px-8 py-4 my-6">
+                    <p class="font-semibold text-lg mb-2" >Peserta</p>
+                    <table class="w-full font-medium" >
+                        <tr>
+                            <td style="width: 210px; height: 35px;" class="text-grey-500 text-sm" >Jumlah Peserta</td>
+                            <td class="text-[#121212] text-sm" > <span class="mr-1" >:</span> {{ count($participants) }} Orang </td>
+                        </tr>
+                        <tr>
+                            <td style="width: 210px; height: 35px;" class="text-grey-500 text-sm" >Nama Pengajar</td>
+                            <td class="text-[#121212] text-sm" > <span class="mr-1" >:</span> {{ $teacher->fullname }} </td>
+                        </tr>
+                    </table>
+                </div>
+                <div class="bg-white p-5 mt-6 rounded-xl mb-10">
+                    <table class="w-full" >
+                        <thead class="table-head" >
+                            <tr>
+                                <td class="" >No.</td>
+                                <td class="" >Nama/Nim</td>
+                                <td class="" >Email</td>
+                            </tr>
+                        </thead>
+                        <tbody class="table-body" >
+                            @foreach ($participants as $i => $student)
+                            <tr>
+                                <td class="w-[80px]" >{{ $i+1 }}</td>
+                                <td class="w-[280px]" >
+                                    <div class="flex items-center" >
+                                        <img src="{{ asset('assets/images/avatar.webp') }}" class="w-[40px] h-[40px] rounded-full object-cover mr-3" alt="">
+                                        <div>
+                                            <p class="mb-1">{{ $student->fullname }}</p>
+                                            <span class="text-grey-500 " >{{ $student->nim }}</span>
+                                        </div>
+                                    </div>
+                                </td>
+                                <td class="" >
+                                    {{ $student->email }}
+                                </td>
+                            </tr>
+                            @endforeach
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
         </div>
+
 
         <form wire:submit="change_section_title" >
             <x-modal
@@ -467,12 +589,17 @@ on(['delete-module' => 'delete_activity']);
 
     </div>
 
+    @assets
+    <script src="https://cdn.jsdelivr.net/npm/ag-grid-community/dist/ag-grid-community.min.js"></script>
+    @endassets
+
     @script
     <script>
 
         Alpine.data('pages', (course = null) => ({
             course,
             showAnnouncement: false,
+            tab: 'proggress',
             activity: {
                 modal: false,
                 section: null,
@@ -549,6 +676,53 @@ on(['delete-module' => 'delete_activity']);
             }, 2000);
         })
         
+    </script>
+    @endscript
+
+    @script
+    <script>
+
+        let data = [
+            {
+                name: 'Rahmat Riyadi Syam',
+                nim: '60200120116',
+                tugas_1: '100',
+                tugas_2: '80',
+                tugas_3: '75',
+                tugas_4: '55',
+            }
+        ]
+
+        for(let i = 0; i < 30; i++){
+            data.push(data[0])
+        }
+
+        const gridOptions = {
+
+            rowData: data,
+
+            columnDefs: [
+                { 
+                    width: 130,
+                    headerName: "NIM" ,
+                    field: 'nim',
+                    pinned: 'left',
+                },
+                { 
+                    headerName: "Mahasiswa" ,
+                    field: 'name',
+                    pinned: 'left',
+                },
+                ...[...Array(4)].map((e,i) => ({ headerName: 'Tugas ' + (i+1), field: `tugas_${i+1}` }))
+            ]
+        };
+        const myGridElement = document.querySelector('#grade-grid');
+        const grid = agGrid.createGrid(myGridElement, gridOptions);
+
+        Livewire.on('change-type', () => {
+            grid.setGridOption('rowData', [])
+        })
+
     </script>
     @endscript
 
