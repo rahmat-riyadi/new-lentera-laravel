@@ -73,9 +73,14 @@ class SubmissionForm extends Form
                 $instance = $this->assignmentSubmission;
             }
 
-            $instance->url()->create([
-                'url' => $this->url
-            ]);
+            $instance->url()->updateOrCreate(
+                [
+                    'assignment_submission_id' => $instance->id
+                ],
+                [
+                    'url' => $this->url
+                ]
+            );
 
             DB::commit();
         } catch (\Throwable $th) {

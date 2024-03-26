@@ -53,7 +53,6 @@ mount(function() {
   />
   <div class="px-3 grow flex flex-col pb-3">
     <a 
-      wire:navigate.hover
       class="flex items-center {{ Route::currentRouteName() == 'home' ? 'bg-primary-light' : 'bg-white' }} w-full py-[15px] pl-4 rounded-xl transition-all group"
       href="/"
     >
@@ -90,7 +89,7 @@ mount(function() {
     >
       <div class="transition-all absolute w-full">
         @foreach ($courses as $item)
-        <a wire:navigate.hover href="/course/{{ $item->shortname }}" class="flex items-center w-full py-3 pl-6 rounded-xl transition-all mb-1 pr-2 group">
+        <a href="/course/{{ $item->shortname }}" class="flex items-center w-full py-3 pl-6 rounded-xl transition-all mb-1 pr-2 group">
           <x-icons.dot
             class="{{ str_contains(url()->current(), $item->shortname) ? 'fill-primary-dark' : 'fill-grey-600' }} group-hover:fill-primary-dark"
           />

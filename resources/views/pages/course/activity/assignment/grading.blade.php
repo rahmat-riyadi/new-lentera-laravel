@@ -43,7 +43,7 @@ $submit_grade = function (){
     $this->validate(['grade' => 'required']);
 
     try {
-        if(!is_null($this->assignmentSubmission->grading_time)){
+        if(is_null($this->assignmentSubmission->grading_time)){
             $this->assignmentSubmission->update([
                 'grade' => str_replace(',','.',$this->grade),
                 'grading_time' => \Carbon\Carbon::now(),

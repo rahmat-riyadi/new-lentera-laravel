@@ -71,7 +71,6 @@ mount(function (Course $course,CourseSection $section, Quiz $quiz){
             'mdl_user.id',
             DB::raw("CONCAT(mdl_user.firstname,' ',mdl_user.lastname) as fullname"),
             'mdl_user.username as nim',
-            // 'sq.id as quiz_id',
             'sqa.student_quiz_id',
             'sq.status',
             'sq.start_time',
@@ -195,7 +194,7 @@ mount(function (Course $course,CourseSection $section, Quiz $quiz){
                             </td>
                             <td >
                                 @switch($student->status)
-                                    @case('Selesai')
+                                    @case('Selesai Mengerjakan')
                                         <span class="chip px-3 py-[3px] attend" >{{ $student->status }}</span>
                                         @break
                                     @case('Sedang Mengerjakan')
@@ -254,7 +253,19 @@ mount(function (Course $course,CourseSection $section, Quiz $quiz){
                         </tr>
                         <tr>
                             <td style="width: 210px; height: 37px;" class="text-grey-500 text-sm" >Status</td>
-                            <td class="text-[#121212] text-sm" > <span class="mr-1 font-semibold text-grey-500" >:</span> <span class="chip py-1 empty" >-</span></td>
+                            <td class="text-[#121212] text-sm" > 
+                                <span class="mr-1 font-semibold text-grey-500" >:</span> 
+                                @switch($studentQuiz->status)
+                                    @case('Selesai Mengerjakan')
+                                        <span class="chip px-3 py-[3px] attend" >{{ $studentQuiz->status }}</span>
+                                        @break
+                                    @case('Sedang Mengerjakan')
+                                        <span class="chip px-3 py-[3px]  late" >{{ $studentQuiz->status }}</span>
+                                        @break
+                                    @default
+                                    <span class="chip px-3 py-[3px]  empty" >-</span>
+                                @endswitch
+                            </td>
                         </tr>
                         <tr>
                             <td style="width: 210px; height: 37px;" class="text-grey-500 text-sm" >Penilaian</td>

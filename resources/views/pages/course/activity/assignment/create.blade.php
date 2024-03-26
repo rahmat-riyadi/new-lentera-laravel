@@ -190,7 +190,7 @@ $submit = function (){
                             </select>
                         </label>
                         <label x-show="$wire.form.submission_type == 'file'" for="wordlimit" class="" >
-                            <span class="block label text-gray-600 text-[12px] mb-1" >Jumlah maksimum kata</span>
+                            <span class="block label text-gray-600 text-[12px] mb-1" >Tipe Dokumen</span>
                             <select wire:model="form.file_types" name="assignsubmission_file_filetypeslist" class="text-field" >
                                 <option value="" >-- Pilih Tipe --</option>
                                 <option value="document" >Document (.pdf, .docs, .pptx, dll)</option>

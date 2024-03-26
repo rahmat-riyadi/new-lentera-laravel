@@ -41,6 +41,9 @@ mount(function (Course $course, CourseSection $section, Assignment $assignment, 
         if($this->type == 'file'){
             $this->form->oldFiles = $submission->files;
         }
+        if($this->type == 'onlinetext'){
+            $this->form->url = $submission->url->url;
+        }
     }
 
     $this->course = $course;

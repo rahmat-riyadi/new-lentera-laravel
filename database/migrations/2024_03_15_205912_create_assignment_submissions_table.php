@@ -14,7 +14,7 @@ return new class extends Migration
         Schema::create('assignment_submissions', function (Blueprint $table) {
             $table->id();
             $table->unsignedBigInteger('assignment_id');
-            $table->foreign('assignment_id')->references('id')->on('assignments');
+            $table->foreign('assignment_id')->references('id')->on('assignments')->onDelete('CASCADE');
             $table->unsignedBigInteger('student_id')->nullable()->index();
             $table->float('grade')->nullable();
             $table->dateTime('grading_time')->nullable();

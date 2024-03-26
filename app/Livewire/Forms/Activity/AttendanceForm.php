@@ -15,7 +15,7 @@ use Livewire\Form;
 class AttendanceForm extends Form
 {
     function boot(){
-        $this->module = Module::where('name', 'attendance')->first();
+        $this->module = Module::where('name', 'attendances')->first();
     }
 
     public Module $module;

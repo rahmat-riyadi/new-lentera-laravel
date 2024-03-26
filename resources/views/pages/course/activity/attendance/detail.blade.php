@@ -78,7 +78,7 @@ $submit_attendance = function (){
 
 <x-layouts.app>
     @volt
-    <div x-data="pages" >
+    <div x-data="pages " class="overflow-y-auto h-full pb-3" >
         <x-activity-subheader 
             path="/course/{{ $course->shortname }}" 
             title="Detail Kehadiran"
@@ -119,7 +119,7 @@ $submit_attendance = function (){
                             <td class="w-[170px]" >Catatan</td>
                         </tr>
                     </thead>
-                    <tbody>
+                    <tbody class="table-body" >
                         @foreach ($students as $i => $student)
                         <tr>
                             <td class="" >{{ $i+1 }}</td>

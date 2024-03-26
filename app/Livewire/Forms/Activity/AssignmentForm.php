@@ -131,6 +131,7 @@ class AssignmentForm extends Form
                 'description' => $this->description,
                 'due_date' => $due_date,
                 'start_date' => $start_date,
+                'grade' => 100,
                 'activity_remember' => $this->activity_remember,
             ]);
 

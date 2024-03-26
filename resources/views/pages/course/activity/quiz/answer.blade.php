@@ -258,7 +258,7 @@ on(['submit-essay' => 'handle_submit_essay']);
                 <div  class="flex flex-col md:flex-row mb-4 gap-4">
                     <div class="bg-white h-full border-[1.5px] p-4 text-sm md:w-[140px] rounded-lg">
                         <p class="font-semibold mb-2" >Soal {{ $i + ($quiz->question_show_number * $currentPage - 1) - 1 }}</p>
-                        <p >Point {{ str_replace('.',',',$question->point) }} dari 20,00</p>
+                        <p >Point {{ str_replace('.',',',$question->point) }} dari 100,00</p>
                     </div>
                     <div class="bg-white flex-1 p-6 rounded-lg">
                         <div class="font-medium" >
@@ -284,7 +284,7 @@ on(['submit-essay' => 'handle_submit_essay']);
                             <label for="description" class="block mt-6" >
                                 <span class="block label text-gray-600 text-[12px] mb-1" >Masukkan Jawaban</span>
                                 <input type="hidden" class="question_{{ $question->id }}" value="{{ $question->student_answer_text }}" >
-                                <div class="question_{{ $question->id }}"  >
+                                <div wire:ignore class="question_{{ $question->id }}"  >
                                     <textarea class="question_{{ $question->id }}" ></textarea>
                                 </div>
                             </label>

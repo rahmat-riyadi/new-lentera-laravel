@@ -15,7 +15,7 @@ class AttendanceController extends Controller
 {
     public function form(Attendance $attendance){
 
-        $mod = Module::where('name', 'attendance')->first();
+        $mod = Module::where('name', 'attendances')->first();
 
         $courseModule = CourseModule::where('instance', $attendance->id)->where('module', $mod->id)
         ->first();

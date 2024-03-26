@@ -87,7 +87,7 @@ class QuizForm extends Form
             'description' => $quiz->description,
             'shuffle_questions' => $quiz->shuffle_questions,
             'question_show_number' => $quiz->question_show_number,
-            'answer_attempt' => $quiz->answer_attempt,
+            'answer_attempt' => $quiz->answer_attempt ?? 1,
             'pass_grade' => $quiz->pass_grade,
             'show_grade' => $quiz->show_grade,
             'show_answers' => $quiz->show_answers,
@@ -164,6 +164,8 @@ class QuizForm extends Form
             CourseHelper::addCourseModuleToSection($this->course->id, $cm->id, $this->section_num);
 
             DB::commit();
+
+            return $instance;
             
         } catch (\Throwable $th) {
             DB::rollBack();

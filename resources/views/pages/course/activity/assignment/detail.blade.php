@@ -234,7 +234,11 @@ mount(function (Course $course,CourseSection $section, Assignment $assignment){
                     </tr>
                 </table>
                 <div class="h-4" ></div>
-                <a wire:navigate.hover href="/student/assignment/{{ $assignment->id }}/submit" class="btn btn-outlined text-center inline-block w-full md:w-fit">Ajukan Penugasan</a>
+                @if (empty($student_submission->grade))
+                <a wire:navigate.hover href="/student/assignment/{{ $assignment->id }}/submit" class="btn btn-outlined text-center inline-block w-full md:w-fit">
+                    {{ !empty($student_submission) ? 'Ubah' : 'Ajukan' }} Penugasan
+                </a>
+                @endif
             </div>    
             @endif
         </div>

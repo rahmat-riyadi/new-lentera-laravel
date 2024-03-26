@@ -1,7 +1,8 @@
 <?php
 
-use function Livewire\Volt\{state, mount, on};
+use function Livewire\Volt\{state, mount, on, updated};
 use App\Helpers\GlobalHelper;
+use App\Exports\GradeExport;
 use App\Models\{
     Module,
     CourseModule,
@@ -11,13 +12,27 @@ use App\Models\{
     Resource,
     Assign,
     Context,
-    Role
+    Role,
+    User,
+    Quiz,
+    Assignment,
+    StudentQuiz,
+    AssignmentSubmission
 };
+
 state([
-    'sections', 'course', 'topic', 'role', 'participants', 'teacher'
+    'sections', 
+    'course', 
+    'topic', 
+    'role', 
+    'participants', 
+    'teacher',
+    'grading',
+    'grading_table_type'
 ]);
 
 mount(function(Course $course){
+    $this->grading_table_type = 'all';
     $ctx = Context::where('contextlevel', 50)->where('instanceid', 4)->first();
     $data = DB::connection('moodle_mysql')->table('mdl_role_assignments as ra')
     ->join('mdl_role as r', 'r.id', '=', 'ra.roleid')
@@ -68,10 +83,106 @@ mount(function(Course $course){
     $this->teacher = $participantsData->first(fn($e) => $e->role == 'editingteacher');
     $this->participants = $participantsData->filter(fn($e) => $e->role != 'editingteacher')->toArray();
 
-
-
+    if($this->role != 'student'){
+        $this->set_grading_data();
+    }
 
 });
+
+$set_grading_data = function ($type = 'all'){
+    $studentIds = collect($this->participants)->pluck('id');
+
+    $gradesStudent = User::query()
+    ->whereIn('mdl_user.id', $studentIds)
+    ->select(
+        'mdl_user.id',
+        DB::raw("CONCAT(mdl_user.firstname,' ',mdl_user.lastname) as fullname"),
+        'mdl_user.username as nim',
+    )
+    ->get();
+
+    if($type == 'all' || $type == 'quiz'){
+        $selectedQuiz = Quiz::where('course_id', $this->course->id)->orderBy('created_at')->get();
+    }
+
+    if($type == 'all' || $type == 'assignment'){
+        $selectedAssignment = Assignment::where('course_id', $this->course->id)->orderBy('created_at')->get();
+    }
+    
+    foreach($gradesStudent as $student){
+
+        if($type == 'all' || $type == 'quiz'){
+            $student->quiz_grades = new stdClass();
+            foreach($selectedQuiz->pluck('id') as $i => $qid){
+                $quiz = StudentQuiz::where('quiz_id', $qid)
+                ->where('student_id', $student->id)
+                ->leftJoin('student_quiz_answers as sqa', 'sqa.student_quiz_id', '=', 'student_quizzes.id')
+                ->select(
+                    'student_quizzes.quiz_id',
+                    'sqa.grade'
+                )
+                ->first();
+    
+                $student->quiz_grades->{"quiz_$i"} = new stdClass();
+                $student->quiz_grades->{"quiz_$i"}->title = $selectedQuiz->first(fn($e) => $e->id == $qid)->name ?? null;
+                $student->quiz_grades->{"quiz_$i"}->grade = $quiz->grade ?? 0.00;
+    
+            }
+        }
+
+        if($type == 'all' || $type == 'assignment'){
+            $student->assignment_grades = new stdClass();
+            foreach($selectedAssignment->pluck('id') as $i => $aid){
+    
+                $assignment = AssignmentSubmission::where('assignment_id', $aid)
+                ->where('student_id', $student->id)
+                ->select(
+                    'grade'
+                )
+                ->first();
+    
+                $student->assignment_grades->{"assignment_$i"} = new stdClass();
+                $student->assignment_grades->{"assignment_$i"}->title = $selectedAssignment->first(fn($e) => $e->id == $aid)->name ?? null;
+                $student->assignment_grades->{"assignment_$i"}->grade = $assignment->grade ?? 0.00;
+    
+            }
+        }
+    }
+
+    $metaData = [
+        'quiz' => ($type == 'all' || $type == 'quiz') ? $selectedQuiz->pluck('name') : [],
+        'assignment' => ($type == 'all' || $type == 'assignment') ? $selectedAssignment->pluck('name') : [],
+        'type' => $type
+    ];
+
+    $this->dispatch('init-table', $gradesStudent, $metaData);
+
+};
+
+$export = function (){
+    $selectedQuiz = Quiz::where('course_id', $this->course->id)->orderBy('created_at')->get();
+
+    if($this->grading_table_type == 'all' || $this->grading_table_type == 'assignment'){
+        $selectedAssignment = Assignment::where('course_id', $this->course->id)->orderBy('created_at')->get();
+    }
+
+    if($this->grading_table_type == 'all' || $this->grading_table_type == 'quiz'){
+        $selectedQuiz = Quiz::where('course_id', $this->course->id)->orderBy('created_at')->get();
+    }
+    switch ($this->grading_table_type) {
+        case 'all':
+            $name = $this->course->fullname . " - Nilai Tugas & Quiz.xlsx";
+            break;
+        case 'assignment':
+            $name = $this->course->fullname . " - Nilai Tugas.xlsx";
+            break;
+        case 'quiz':
+            $name = $this->course->fullname . " - Nilai Quiz.xlsx";
+            break;
+    }
+
+    return (new GradeExport($this->course, $selectedQuiz ?? [], $selectedAssignment ?? [], $this->grading_table_type))->download($name);
+};  
 
 $get_sections = function ($course){
     $sections = [];
@@ -113,7 +224,7 @@ $get_sections = function ($course){
                     case 'resource':
                         $mod_table = 'resource';
                         break;
-                    case 'attendance':
+                    case 'attendances':
                         $mod_table = 'attendances';
                         break;
                     case 'assign':
@@ -208,7 +319,7 @@ $delete_activity = function ($id){
             case 'resource':
                 $mod_table = 'resource';
                 break;
-            case 'attendance':
+            case 'attendances':
                 $mod_table = 'attendances';
                 break;
             case 'assign':
@@ -237,6 +348,10 @@ $delete_activity = function ($id){
 on(['delete-section' => 'delete_section']);
 
 on(['delete-module' => 'delete_activity']);
+
+updated(['grading_table_type' => function($e){
+    $this->set_grading_data($e);
+}]);
 
 ?>
 
@@ -293,6 +408,8 @@ on(['delete-module' => 'delete_activity']);
                     <p :class="tab == 'participants' ? 'text-black' : 'text-grey-400' " class="font-mediumtransition-all ml-2 text-sm" >Peserta</p>
                 </button>
             </div>
+            @else
+            <div class="h-4" ></div>
             @endif
         </div>
 
@@ -384,7 +501,7 @@ on(['delete-module' => 'delete_activity']);
                                 $icon = asset('assets/icons/penugasan.svg');
                                 $detail_url = "/course/{$course->shortname}/activity/assignment/detail/{$module->id}";
                                 break;
-                            case 'attendance':
+                            case 'attendances':
                                 $icon = asset('assets/icons/kehadiran.svg');
                                 $detail_url = "/course/{$course->shortname}/activity/attendance/detail/{$module->id}";
                                 break;
@@ -449,11 +566,17 @@ on(['delete-module' => 'delete_activity']);
             <div x-show="tab == 'value'" >
                 <div class="bg-white px-8 py-6 my-6">
                     <div class="flex mb-4">
-                        <select name="" class="text-field w-[120px] ml-auto rounded " id="">
-                            <option value="">Semua</option>
-                            <option value="">Tugas</option>
-                            <option value="">Quiz</option>
+                        <select wire:model.live="grading_table_type" class="text-field w-[120px] ml-auto rounded " id="">
+                            <option value="all">Semua</option>
+                            <option value="assignment">Tugas</option>
+                            <option value="quiz">Quiz</option>
                         </select>
+                        <x-button 
+                            class="ml-3 font-medium" 
+                            @click="$wire.export()"
+                        >
+                            Export
+                        </x-button>
                     </div>
                     <div wire:ignore >
                         <div class="ag-theme-quartz" style="height: 70vh;" id="grade-grid"></div>
@@ -589,9 +712,11 @@ on(['delete-module' => 'delete_activity']);
 
     </div>
 
+    @if ($role != 'student')
     @assets
     <script src="https://cdn.jsdelivr.net/npm/ag-grid-community/dist/ag-grid-community.min.js"></script>
     @endassets
+    @endif
 
     @script
     <script>
@@ -679,52 +804,101 @@ on(['delete-module' => 'delete_activity']);
     </script>
     @endscript
 
+    @if ($role != 'student')
     @script
     <script>
 
-        let data = [
+        const fixColumn = [
             {
-                name: 'Rahmat Riyadi Syam',
-                nim: '60200120116',
-                tugas_1: '100',
-                tugas_2: '80',
-                tugas_3: '75',
-                tugas_4: '55',
-            }
+                field: 'fullname',
+                pinned: 'left',
+                headerName: 'Mahasiswa',
+                cellRenderer: params => {
+                    return `<p class="font-medium" style="line-height: 20px;" >${params.value} <br> <span class="text-grey-600 font-regular" >${params.data.nim}</span></p>`
+                }
+            },
         ]
 
-        for(let i = 0; i < 30; i++){
-            data.push(data[0])
-        }
 
         const gridOptions = {
-
-            rowData: data,
-
-            columnDefs: [
-                { 
-                    width: 130,
-                    headerName: "NIM" ,
-                    field: 'nim',
-                    pinned: 'left',
+            rowData: [],
+            columnDefs: [],
+            rowHeight: 60,
+            defaultColDef: {
+                cellStyle: { 
+                    display: 'flex',
+                    alignItems: 'center'
                 },
-                { 
-                    headerName: "Mahasiswa" ,
-                    field: 'name',
-                    pinned: 'left',
-                },
-                ...[...Array(4)].map((e,i) => ({ headerName: 'Tugas ' + (i+1), field: `tugas_${i+1}` }))
-            ]
+            },
         };
         const myGridElement = document.querySelector('#grade-grid');
         const grid = agGrid.createGrid(myGridElement, gridOptions);
 
-        Livewire.on('change-type', () => {
-            grid.setGridOption('rowData', [])
+        Livewire.on('init-table', ([ grades, metaData ]) => {
+
+            const { quiz, assignment } = metaData
+
+            console.log({ grades, metaData })
+
+            var columnDefs = [
+                ...fixColumn
+            ]
+
+            if(metaData.type == 'assignment'){
+                columnDefs = [
+                    ...columnDefs,
+                    ...Array.from({ length: assignment.length }, (_, index) => index)
+                    .map(e => ({ 
+                        field: `assignment_grades.assignment_${e}.grade`,
+                        headerName: assignment[e],
+                        width: 140,
+                    }))
+                ]
+            }
+
+            if(metaData.type == 'quiz'){
+                columnDefs = [
+                    ...columnDefs,
+                    ...Array.from({ length: quiz.length }, (_, index) => index)
+                    .map(e => ({ 
+                        field: `quiz_grades.quiz_${e}.grade`,
+                        headerName: quiz[e],
+                        width: 140,
+                    }))
+                ]
+            }
+
+            if(metaData.type == 'all'){
+                columnDefs = [
+                    ...columnDefs,
+                    {
+                        headerName: 'Quiz',
+                        children: Array.from({ length: quiz.length }, (_, index) => index)
+                            .map(e => ({ 
+                                field: `quiz_grades.quiz_${e}.grade`,
+                                headerName: quiz[e],
+                                width: 140,
+                            }))
+                    },
+                    {
+                        headerName: 'Tugas', 
+                        children: Array.from({ length: assignment.length }, (_, index) => index)
+                        .map(e => ({ 
+                            field: `assignment_grades.assignment_${e}.grade`,
+                            headerName: assignment[e],
+                            width: 140,
+                        }))
+                    }
+                ]
+            }
+
+            grid.setGridOption('columnDefs', columnDefs)
+            grid.setGridOption('rowData', grades)
         })
 
     </script>
     @endscript
+    @endif
 
     @endvolt
 </x-layouts.app>

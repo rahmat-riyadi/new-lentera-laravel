@@ -33,8 +33,8 @@ $submit = function (){
     $this->form->validate();
     
     try {
-        $this->form->store();
-        $this->redirect('/course/'.$this->course->shortname, navigate: true);
+        $quiz = $this->form->store();
+        $this->redirect('/teacher/quiz/'.$quiz->id.'/questions/create', navigate: true);
     } catch (\Throwable $th) {
         // throw $th;
         Log::info($th->getMessage());
