@@ -131,7 +131,6 @@ $get_courses = function (){
         'f.id as fav_id'
     )
     ->get();
-    Log::info(json_decode($this->courses));
 };
 
 ?>

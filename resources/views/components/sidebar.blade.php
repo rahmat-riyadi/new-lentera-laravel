@@ -2,6 +2,7 @@
 
 use function Livewire\Volt\{state, mount};
 use App\Models\Enrol;
+use App\Models\Course;
 
 state([
   'courses' => [],
@@ -9,13 +10,31 @@ state([
 
 mount(function() {
 
-  $enrolid = auth()->user()->enrolments->pluck('enrolid');
-  $enrol = Enrol::whereIn('id', $enrolid)->get();
-  $course = $enrol->map(function ($e){
-      return $e->course;
-  });
+  $time = time();
+  $course = Course::
+  whereIn('mdl_course.id', function($q) use ($time){
+      $q->select('e.courseid')
+      ->from('mdl_enrol as e')
+      ->join('mdl_user_enrolments as ue', function ($join) {
+          $join->on('ue.enrolid', '=', 'e.id')
+              ->where('ue.userid', '=', auth()->user()->id);
+      })
+      ->join('mdl_course as c', 'c.id', '=', 'e.courseid')
+      ->where('ue.status', '=', '0')
+      ->where('e.status', '=', '0')
+      ->where('ue.timestart', '<=', $time)
+      ->where(function ($query) use ($time) {
+          $query->where('ue.timeend', '=', 0)
+                  ->orWhere('ue.timeend', '>', $time);
+      });
+  })
+  ->get();
 
   $this->courses = $course;
+
+  $this->courses = $this->courses->filter(function($e)  {
+    return !($e->startdate > time()) && !($e->enddate < time() && $e->enddate != 0);
+  });
 
 });
 
