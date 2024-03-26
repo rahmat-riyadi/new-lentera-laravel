@@ -32,7 +32,6 @@ mount(function () {
         });
     })
     ->pluck('id');
-    Log::info($courseids);
     
     $quiz = Quiz::whereIn('course_id', $courseids)
     ->join('moodle402.mdl_course as c', 'c.id', '=', 'quizzes.course_id')

@@ -758,7 +758,7 @@ updated(['grading_table_type' => function($e){
         Alpine.data('pages', (course = null) => ({
             course,
             showAnnouncement: false,
-            tab: 'value',
+            tab: 'proggress',
             activity: {
                 modal: false,
                 section: null,

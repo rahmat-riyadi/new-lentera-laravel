@@ -105,7 +105,6 @@ mount(function() {
     <a
       class="flex items-center {{ Route::currentRouteName() == 'calendar' ? 'bg-primary-light' : 'bg-white' }} w-full py-[13px] pl-4 rounded-xl transition-all group"
       href="/calendar"
-      wire:navigate
     >
     <x-icons.calendar
         class="{{ Route::currentRouteName() == 'calendar' ? 'fill-primary-dark' : 'fill-grey-600' }} w-6 group-hover:fill-primary-dark"
