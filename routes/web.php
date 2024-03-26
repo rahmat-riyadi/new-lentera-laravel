@@ -20,52 +20,60 @@ use Illuminate\Support\Facades\Route;
 |
 */
 
-Route::get('/logout', function(){
-    Auth::logout();
-    return redirect('/login');
-})->middleware('auth');
-
 Route::get('/login', function(){
     return view('pages.login');
 })->name('login');
 
-Route::get('/', function () {
-    return view('pages.index');
-})->middleware('auth')->name('home');
+Route::group(['middleware' => 'auth'], function(){
 
-Route::group(['prefix' => 'course', 'as' => 'course'], function(){
-    Route::get('/{course:shortname}', [CourseController::class, 'index']);
-
-    Route::group(['prefix' => '{course:shortname}/activity'], function(){
-        Route::get('create/{activity}/section/{section}', [ActivityController::class, 'create']);
-        Route::get('update/{activity}/instance/{id}/section/{section}', [ActivityController::class, 'edit']);
-        Route::get('/{activity}/detail/{courseModule}', [ActivityController::class, 'show']);
+    Route::get('/logout', function(){
+        Auth::logout();
+        return redirect('/login');
     });
     
-})->middleware('auth');
-
-Route::group(['prefix' => 'teacher'], function(){
-    Route::group(['prefix' => 'attendance'], function(){
-        Route::get('form/{attendance}', [AttendanceController::class, 'form']);
-    });
-
-    Route::group(['prefix' => 'assignment'], function(){
-        Route::get('{assignment}/grade/{assignmentSubmission}', [AssignmentController::class, 'grade']);
-    });
-
-    Route::group(['prefix' => 'quiz'], function(){
-        Route::get('{quiz}/questions/create', [QuizController::class, 'createQuestion']);
-        Route::get('{quiz}/assessment/{studentQuiz}', [QuizController::class, 'assessment']);
-    });
-})->middleware('auth');
-
-Route::group(['prefix' => 'student'], function(){
-    Route::group(['prefix' => 'assignment'], function(){
-        Route::get('{assignment}/submit', [AssignmentController::class, 'createSubmission']);
-    });
-
-    Route::group(['prefix' => 'quiz'], function(){
-        Route::get('{quiz}/answer', [StudentQuizController::class, 'answer']);
+    Route::get('/', function () {
+        return view('pages.index');
+    })->name('home');
+    
+    Route::get('/calendar', function () {
+        return view('pages.calendar');
+    })->name('calendar');
+    
+    Route::group(['prefix' => 'course', 'as' => 'course'], function(){
+        Route::get('/{course:shortname}', [CourseController::class, 'index']);
+    
+        Route::group(['prefix' => '{course:shortname}/activity'], function(){
+            Route::get('create/{activity}/section/{section}', [ActivityController::class, 'create']);
+            Route::get('update/{activity}/instance/{id}/section/{section}', [ActivityController::class, 'edit']);
+            Route::get('/{activity}/detail/{courseModule}', [ActivityController::class, 'show']);
+        });
+        
     });
     
-})->middleware('auth');
+    Route::group(['prefix' => 'teacher'], function(){
+        Route::group(['prefix' => 'attendance'], function(){
+            Route::get('form/{attendance}', [AttendanceController::class, 'form']);
+        });
+    
+        Route::group(['prefix' => 'assignment'], function(){
+            Route::get('{assignment}/grade/{assignmentSubmission}', [AssignmentController::class, 'grade']);
+        });
+    
+        Route::group(['prefix' => 'quiz'], function(){
+            Route::get('{quiz}/questions/create', [QuizController::class, 'createQuestion']);
+            Route::get('{quiz}/assessment/{studentQuiz}', [QuizController::class, 'assessment']);
+        });
+    });
+    
+    Route::group(['prefix' => 'student'], function(){
+        Route::group(['prefix' => 'assignment'], function(){
+            Route::get('{assignment}/submit', [AssignmentController::class, 'createSubmission']);
+        });
+    
+        Route::group(['prefix' => 'quiz'], function(){
+            Route::get('{quiz}/answer', [StudentQuizController::class, 'answer']);
+        });
+        
+    });
+
+});

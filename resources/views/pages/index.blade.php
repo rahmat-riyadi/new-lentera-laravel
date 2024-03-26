@@ -37,6 +37,7 @@ mount(function () {
     $quiz = Quiz::whereIn('course_id', $courseids)
     ->join('moodle402.mdl_course as c', 'c.id', '=', 'quizzes.course_id')
     ->whereNotNull('activity_remember')
+    ->where('activity_remember', '<=', \Carbon\Carbon::now())
     ->select(
         'quizzes.id',
         'quizzes.name',
@@ -54,6 +55,7 @@ mount(function () {
     $assignment = Assignment::whereIn('course_id', $courseids)
     ->join('moodle402.mdl_course as c', 'c.id', '=', 'assignments.course_id')
     ->whereNotNull('activity_remember')
+    ->where('activity_remember', '<', \Carbon\Carbon::now())
     ->select(
         'assignments.id',
         'c.fullname as course',
