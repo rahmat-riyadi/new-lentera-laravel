@@ -20,7 +20,9 @@ class ActivityController extends Controller
     protected $root_dir = 'pages.course.activity';
 
     public function create(Course $course, $activity, $section){
-        $section = CourseSection::where('section', $section)->where('course', $course->id)->first(['id', 'name', 'section']);
+        $section = CourseSection::where('section', $section)
+        ->where('course', $course->id)
+        ->first(['id', 'name', 'section']);
         return view("pages.course.activity.$activity.create", compact('course', 'section'));
     }
 

@@ -17,7 +17,9 @@ use App\Models\{
     Quiz,
     Assignment,
     StudentQuiz,
-    AssignmentSubmission
+    AssignmentSubmission,
+    Attendance,
+    StudentAttendance,
 };
 
 state([
@@ -108,8 +110,30 @@ $set_grading_data = function ($type = 'all'){
     if($type == 'all' || $type == 'assignment'){
         $selectedAssignment = Assignment::where('course_id', $this->course->id)->orderBy('created_at')->get();
     }
+
+    if($type == 'all' || $type == 'attendance'){
+        $selectedAttendance = Attendance::where('course_id', $this->course->id)->orderBy('created_at')->get();
+    }
     
     foreach($gradesStudent as $student){
+
+        if($type == 'all' || $type == 'attendance'){
+            $student->attendance_grades = new stdClass();
+            foreach($selectedAttendance->pluck('id') as $i => $attId){
+                $attendance = StudentAttendance::where('attendance_id', $attId)
+                ->where('student_id', $student->id)
+                ->select(
+                    'id',
+                    'status'
+                )
+                ->first();
+    
+                $student->attendance_grades->{"attendance_$i"} = new stdClass();
+                $student->attendance_grades->{"attendance_$i"}->title = $selectedAttendance->first(fn($e) => $e->id == $attId)->name ?? null;
+                $student->attendance_grades->{"attendance_$i"}->grade = $attendance->status ?? null;
+    
+            }
+        }
 
         if($type == 'all' || $type == 'quiz'){
             $student->quiz_grades = new stdClass();
@@ -152,6 +176,7 @@ $set_grading_data = function ($type = 'all'){
     $metaData = [
         'quiz' => ($type == 'all' || $type == 'quiz') ? $selectedQuiz->pluck('name') : [],
         'assignment' => ($type == 'all' || $type == 'assignment') ? $selectedAssignment->pluck('name') : [],
+        'attendance' => ($type == 'all' || $type == 'attendance') ? $selectedAttendance->pluck('name') : [],
         'type' => $type
     ];
 
@@ -169,9 +194,14 @@ $export = function (){
     if($this->grading_table_type == 'all' || $this->grading_table_type == 'quiz'){
         $selectedQuiz = Quiz::where('course_id', $this->course->id)->orderBy('created_at')->get();
     }
+
+    if($this->grading_table_type == 'all' || $this->grading_table_type == 'attendance'){
+        $selectedAttendance = Attendance::where('course_id', $this->course->id)->orderBy('created_at')->get();
+    }
+
     switch ($this->grading_table_type) {
         case 'all':
-            $name = $this->course->fullname . " - Nilai Tugas & Quiz.xlsx";
+            $name = $this->course->fullname . " - Nilai Tugas Quiz Kehadiran.xlsx";
             break;
         case 'assignment':
             $name = $this->course->fullname . " - Nilai Tugas.xlsx";
@@ -179,9 +209,12 @@ $export = function (){
         case 'quiz':
             $name = $this->course->fullname . " - Nilai Quiz.xlsx";
             break;
+        case 'attendance':
+            $name = $this->course->fullname . " - Rekap Kehadiran.xlsx";
+            break;
     }
 
-    return (new GradeExport($this->course, $selectedQuiz ?? [], $selectedAssignment ?? [], $this->grading_table_type))->download($name);
+    return (new GradeExport($this->course, $selectedQuiz ?? [], $selectedAssignment ?? [], $selectedAttendance ?? [],$this->grading_table_type))->download($name);
 };  
 
 $get_sections = function ($course){
@@ -568,6 +601,7 @@ updated(['grading_table_type' => function($e){
                     <div class="flex mb-4">
                         <select wire:model.live="grading_table_type" class="text-field w-[120px] ml-auto rounded " id="">
                             <option value="all">Semua</option>
+                            <option value="attendance">Kehadiran</option>
                             <option value="assignment">Tugas</option>
                             <option value="quiz">Quiz</option>
                         </select>
@@ -724,7 +758,7 @@ updated(['grading_table_type' => function($e){
         Alpine.data('pages', (course = null) => ({
             course,
             showAnnouncement: false,
-            tab: 'proggress',
+            tab: 'value',
             activity: {
                 modal: false,
                 section: null,
@@ -836,13 +870,25 @@ updated(['grading_table_type' => function($e){
 
         Livewire.on('init-table', ([ grades, metaData ]) => {
 
-            const { quiz, assignment } = metaData
+            const { quiz, assignment, attendance } = metaData
 
             console.log({ grades, metaData })
 
             var columnDefs = [
                 ...fixColumn
             ]
+
+            if(metaData.type == 'attendance'){
+                columnDefs = [
+                    ...columnDefs,
+                    ...Array.from({ length: attendance.length }, (_, index) => index)
+                    .map(e => ({ 
+                        field: `attendance_grades.attendance_${e}.grade`,
+                        headerName: attendance[e],
+                        width: 140,
+                    }))
+                ]
+            }
 
             if(metaData.type == 'assignment'){
                 columnDefs = [
@@ -871,6 +917,15 @@ updated(['grading_table_type' => function($e){
             if(metaData.type == 'all'){
                 columnDefs = [
                     ...columnDefs,
+                    {
+                        headerName: 'Kehadiran',
+                        children: Array.from({ length: attendance.length }, (_, index) => index)
+                            .map(e => ({ 
+                                field: `attendance_grades.attendance_${e}.grade`,
+                                headerName: attendance[e],
+                                width: 140,
+                            }))
+                    },
                     {
                         headerName: 'Quiz',
                         children: Array.from({ length: quiz.length }, (_, index) => index)

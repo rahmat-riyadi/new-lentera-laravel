@@ -18,7 +18,7 @@ return new class extends Migration
             $table->string('name');
             $table->text('description');
             $table->date('date');
-            $table->time('startime');
+            $table->time('starttime');
             $table->time('endtime');
             $table->string('filled_by');
             $table->boolean('is_repeat')->default(false);

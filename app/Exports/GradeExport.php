@@ -22,13 +22,16 @@ class GradeExport implements WithMultipleSheets
 
     protected $assignment;
 
+    protected $attendance;
+
     protected $type;
 
-    public function __construct(Course $course, $quiz, $assignment, $type = 'all')
+    public function __construct(Course $course, $quiz, $assignment, $attendance, $type = 'all')
     {
         $this->course = $course;
         $this->quiz = $quiz;
         $this->assignment = $assignment;
+        $this->attendance = $attendance;
         $this->type = $type;
     }
 
@@ -59,6 +62,10 @@ class GradeExport implements WithMultipleSheets
 
         if($this->type == 'all' || $this->type == 'quiz'){
             $sheets[] = new QuizExport($gradesStudent, $this->quiz);
+        }
+
+        if($this->type == 'all' || $this->type == 'attendance'){
+            $sheets[] = new AttendanceExport($gradesStudent, $this->attendance);
         }
 
         return $sheets;

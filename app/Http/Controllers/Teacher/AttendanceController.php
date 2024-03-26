@@ -10,6 +10,7 @@ use App\Models\CourseModule;
 use App\Models\CourseSection;
 use App\Models\Module;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 
 class AttendanceController extends Controller
 {
@@ -17,8 +18,12 @@ class AttendanceController extends Controller
 
         $mod = Module::where('name', 'attendances')->first();
 
-        $courseModule = CourseModule::where('instance', $attendance->id)->where('module', $mod->id)
+        $courseModule = CourseModule::where('instance', $attendance->id)
+        ->where('module', $mod->id)
+        ->orderBy('added', 'DESC')
         ->first();
+
+        Log::info($courseModule);
 
         $section = CourseSection::find($courseModule->section);
         $course = Course::find($courseModule->course);

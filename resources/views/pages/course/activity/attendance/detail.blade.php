@@ -33,13 +33,13 @@ mount(function (Course $course,CourseSection $section, Attendance $attendance){
         $studentAttendancesIds = $studentAttendances->pluck('student_id')->toArray();
         $students = User::whereIn('id', $studentAttendancesIds)->get();
         $this->students = $students->map(function ($e) use ($studentAttendances) {
-            $att = $studentAttendances->firstWhere('studentId', $e->id);
+            $att = $studentAttendances->firstWhere('student_id', $e->id);
             return [
                 'id' => $e->id,
                 'name' => $e->firstname . ' ' . $e->lastname,
                 'nim' => $e->username,
                 'status' => $att->status ?? null,
-                'notes' => $att->notes ?? null,
+                'note' => $att->note ?? null,
             ];
         });
     } else {
@@ -133,19 +133,60 @@ $submit_attendance = function (){
                                 </div>
                             </td>
                             <td class="text-center" >
-                                @if($student['status'] === null)
-                                    <span class="chip empty px-3 py-[2px]" >.</span>
-                                @else
-                                    
-                                @endif
+                                @switch($student['status'])
+                                    @case('Hadir')
+                                        <span class="chip attend px-2 py-1" >H</span>
+                                        @break
+                                    @case('Terlambat')
+                                        <span class="chip late px-2 py-1" >T</span>
+                                        @break
+                                    @case('Sakit')
+                                        <span class="chip sick px-2 py-1" >S</span>
+                                        @break
+                                    @case('Izin')
+                                        <span class="chip assignment px-2 py-1" >I</span>
+                                        @break
+                                    @case('Alpa')
+                                        <span class="chip absen px-2 py-1" >A</span>
+                                        @break
+                                    @default
+                                        <span class="chip empty px-2 py-1" >-</span>
+                                        
+                                @endswitch
                             </td>
                             <td>
-                                -    
+                                {{ $student['note'] ?? '-' }}    
                             </td>
                         </tr>
                         @endforeach
                     </tbody>
                 </table>
+                <div class="bg-grey-100 py-3 px-5 flex gap-x-5 mt-4">
+                    <span>
+                        <span class="chip attend px-2 py-1 mr-1" >H</span>
+                        <span class="font-medium text-sm" >Hadir</span>
+                    </span>
+                    <span>
+                        <span class="chip sick px-2 py-1 mr-1" >S</span>
+                        <span class="font-medium text-sm" >Sakit</span>
+                    </span>
+                    <span>
+                        <span class="chip late px-2 py-1 mr-1" >T</span>
+                        <span class="font-medium text-sm" >Terlambat</span>
+                    </span>
+                    <span>
+                        <span class="chip assignment px-2 py-1 mr-1" >I</span>
+                        <span class="font-medium text-sm" >Izin</span>
+                    </span>
+                    <span>
+                        <span class="chip absen px-2 py-1 mr-1" >A</span>
+                        <span class="font-medium text-sm" >Alpa</span>
+                    </span>
+                    <span>
+                        <span class="chip empty px-2 py-1 mr-1" >-</span>
+                        <span class="font-medium text-sm" >Data belum dimasukkan</span>
+                    </span>
+                </div>
             </div>
             @else
             <div class="bg-white p-5 mt-6 rounded-xl" >
