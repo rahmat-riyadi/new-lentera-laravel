@@ -16,7 +16,7 @@ return new class extends Migration
             $table->unsignedBigInteger('attendance_id');
             $table->foreign('attendance_id')->references('id')->on('attendances')->onDelete('CASCADE');
             $table->unsignedBigInteger('student_id')->index();
-            $table->enum('Status', ['Alpa', 'Sakit', 'Izin', 'Terlambat', 'Tanpa Keterangan', 'Hadir'])->nullable();
+            $table->enum('status', ['Alpa', 'Sakit', 'Izin', 'Terlambat', 'Tanpa Keterangan', 'Hadir'])->nullable();
             $table->string('note')->nullable();
             $table->timestamps();
         });

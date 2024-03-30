@@ -3,6 +3,7 @@
 use function Livewire\Volt\{state, mount, on, updated};
 use App\Helpers\GlobalHelper;
 use App\Exports\GradeExport;
+use App\Helpers\CourseHelper;
 use App\Models\{
     Module,
     CourseModule,
@@ -30,7 +31,10 @@ state([
     'participants', 
     'teacher',
     'grading',
-    'grading_table_type'
+    'grading_table_type',
+    'enrolled_course',
+    'imported_course_sections',
+    'selected_imported_contents'
 ]);
 
 mount(function(Course $course){
@@ -44,6 +48,7 @@ mount(function(Course $course){
         'r.shortname as role',
     )
     ->first();
+
     $this->role = $data->role;
     $this->topic = new stdClass();
     $this->get_sections($course);
@@ -87,6 +92,31 @@ mount(function(Course $course){
 
     if($this->role != 'student'){
         $this->set_grading_data();
+        $time = time();
+        $this->enrolled_course = Course::
+        whereIn('mdl_course.id', function($q) use ($time){
+            $q->select('e.courseid')
+            ->from('mdl_enrol as e')
+            ->join('mdl_user_enrolments as ue', function ($join) {
+                $join->on('ue.enrolid', '=', 'e.id')
+                    ->where('ue.userid', '=', auth()->user()->id);
+            })
+            ->join('mdl_course as c', 'c.id', '=', 'e.courseid')
+            ->where('ue.status', '=', '0')
+            ->where('e.status', '=', '0')
+            ->where('ue.timestart', '<=', $time)
+            ->where(function ($query) use ($time) {
+                $query->where('ue.timeend', '=', 0)
+                        ->orWhere('ue.timeend', '>', $time);
+            });
+        })
+        ->where('id', '!=', $this->course->id)
+        ->select(
+            'id',
+            'shortname',
+            'fullname',
+        )
+        ->get();
     }
 
 });
@@ -182,6 +212,10 @@ $set_grading_data = function ($type = 'all'){
 
     $this->dispatch('init-table', $gradesStudent, $metaData);
 
+    if(session()->has('success')){
+        $this->dispatch('notify', 'success', 'Berhasil mengimpor kelas');
+    }
+
 };
 
 $export = function (){
@@ -266,10 +300,6 @@ $get_sections = function ($course){
                     case 'quiz':
                         $mod_table = 'quizzes';
                         break;
-                    
-                    default:
-                        # code...
-                        break;
                 }
 
                 if($selectedModule->name == 'url'){
@@ -278,16 +308,19 @@ $get_sections = function ($course){
                     $fields = ['id', 'name', 'description'];
                 }
 
-                $instance = DB::table($mod_table)
-                ->where('id', $cm->instance)
-                ->first($fields);
+                if(!empty($mod_table)){
+                    $instance = DB::table($mod_table)
+                    ->where('id', $cm->instance)
+                    ->first($fields);
+                }
+
 
                 $module->name = $instance->name ?? '';
                 $module->description = $instance->description ?? '';
                 $module->modname = $selectedModule->name;
 
                 if($selectedModule->name == 'url'){
-                    $module->url = $instance->url;   
+                    $module->url = $instance->url ?? '';   
                 }
 
                 if($selectedModule->name == 'resource'){
@@ -378,6 +411,270 @@ $delete_activity = function ($id){
 
 };
 
+$get_imported_course_info = function ($id){
+    $this->selected_imported_contents = [];
+    $sections = [];
+
+    $courseSections = CourseSection::where('course', $id)->get();
+
+    foreach($courseSections as $cs){
+
+        $section = new stdClass();
+
+        $section->id = $cs->id;
+        $section->name = $cs->name;
+        $section->section = $cs->section;
+        $section->modules = [];
+
+        $this->selected_imported_contents[$cs->id] = [];
+
+        if(!empty($cs->sequence)){
+
+            $cmids = explode(',', $cs->sequence);
+
+            $this->selected_imported_contents[$cs->id] = $cmids;
+
+            $courseModules = CourseModule::whereIn('id', $cmids)
+            ->where('deletioninprogress', 0)
+            ->where('course', $id)
+            ->get();
+
+            foreach($courseModules as $cm){
+
+                $module = new stdClass();
+
+                $module->id = $cm->id;
+                $module->instance = $cm->instance;
+                $module->module = $cm->module;
+
+                $selectedModule = Module::find($cm->module);
+
+                switch ($selectedModule->name) {
+                    case 'url':
+                        $mod_table = 'url';
+                        break;
+                    case 'resource':
+                        $mod_table = 'resource';
+                        break;
+                    case 'attendances':
+                        $mod_table = 'attendances';
+                        break;
+                    case 'assign':
+                        $mod_table = 'assignments';
+                        break;
+                    case 'quiz':
+                        $mod_table = 'quizzes';
+                        break;
+                }
+
+                if($selectedModule->name == 'url'){
+                    $fields = ['id', 'name', 'description', 'url'];
+                } else {
+                    $fields = ['id', 'name', 'description'];
+                }
+
+                $instance = DB::table($mod_table)
+                ->where('id', $cm->instance)
+                ->first($fields);
+
+                $module->name = $instance->name ?? '';
+                $module->description = $instance->description ?? '';
+                $module->modname = $selectedModule->name;
+
+                if($selectedModule->name == 'url'){
+                    $module->url = $instance->url;   
+                }
+
+                if($selectedModule->name == 'resource'){
+                    $file = DB::table('resource_files')->where('resource_id', $instance->id)->first('file');
+                    $module->file = url('storage/'.$file->file);   
+                }
+
+                $section->modules[] = $module;
+            }
+        }
+
+        
+        $sections[] = $section;
+    }
+
+    $this->imported_course_sections = $sections;
+
+    $this->selected_imported_contents = collect($this->selected_imported_contents);
+
+    Log::info($this->selected_imported_contents->all());
+
+};
+
+$handle_checked_imported_section = function ($id){
+    if($this->selected_imported_contents->contains(fn($val, $key) => $key == $id)){
+        $this->selected_imported_contents = $this->selected_imported_contents->filter(fn($val, $key) => $key != $id);
+    } else {
+        $this->selected_imported_contents->put($id, []);
+    }
+
+    Log::info($this->selected_imported_contents->all());
+
+};
+
+$handle_checked_imported_section_module = function ($section_id, $mod_id){
+    Log::info($section_id);
+    Log::info($mod_id);
+    if($this->selected_imported_contents->contains(fn($val, $key) => $key == $section_id)){
+        if(in_array($mod_id,$this->selected_imported_contents->get($section_id))){
+            $mod_ids = array_filter($this->selected_imported_contents->get($section_id), function($val) use ($mod_id){
+                return $val != $mod_id;
+            });
+            $this->selected_imported_contents = $this->selected_imported_contents->replace([$section_id => $mod_ids]);
+        } else {
+            $this->selected_imported_contents = $this->selected_imported_contents->replace([$section_id => [ ...$this->selected_imported_contents->get($section_id), $mod_id ]]);
+        }
+    } else {
+        Log::info('not contains');
+        $this->selected_imported_contents = $this->selected_imported_contents->replace([$section_id => [$mod_id]]);
+    }
+    Log::info($this->selected_imported_contents->all());
+};  
+
+$import_class = function (){
+
+    DB::beginTransaction();
+
+    try {
+
+        CourseModule::where('course', $this->course->id)->delete();
+        CourseSection::where('course', $this->course->id)->delete();
+
+        foreach($this->selected_imported_contents as $key => $section){
+
+            $oldSection = CourseSection::find($key);
+
+            $this->course->section()->create([
+                ...collect($oldSection)->except(['sequence', 'course', 'id']),
+                'timemodified' => time()
+            ]);
+
+            foreach ($section as $module) {
+                if(is_numeric($module)){
+                    
+                    $oldCourseModule = CourseModule::find($section)->first();
+
+                    Log::info($oldCourseModule);
+                    
+                    if ($oldCourseModule) {
+                        $selectedModule = Module::find($oldCourseModule->module);
+                        Log::info($selectedModule);
+                        switch ($selectedModule->name) {
+                            case 'url':
+                                $instance = Url::find($oldCourseModule->instance);
+                                $newInstance = $this->course->url()->create(
+                                    ...collect($instance)->except(['id', 'created_at', 'update_at', 'course_id'])
+                                );
+                                break;
+                            case 'resource':
+                                $instance = Resource::find($oldCourseModule->instance);
+                                $newInstance = $this->course->resource()->create(
+                                    ...collect($instance)->except(['id', 'created_at', 'update_at', 'course_id'])
+                                );
+                                foreach($instance->files as $file){
+                                    $newInstance->files()->create(collect($file)->except(['id', 'created_at', 'update_at']));
+                                }
+                                break;
+                            case 'attendances':
+                                $instance = Attendance::find($oldCourseModule->instance);
+                                $newInstance = $this->course->attendance()->create([
+                                    'name' => $instance->name,
+                                    'description' => $instance->description,
+                                    'date' => $instance->date,
+                                    'starttime' => $instance->starttime,
+                                    'endtime' => $instance->endtime,
+                                    'filled_by' => $instance->filled_by,
+                                    'is_repeat' => $instance->is_repeat,
+                                    'repeat_attempt' => $instance->repeat_attempt,
+                                ]);
+                                $role = Role::where('shortname', 'student')->first();
+                                $participantsData = DB::connection('moodle_mysql')
+                                ->table('mdl_enrol')
+                                ->where('mdl_enrol.courseid', '=', $this->course->id)
+                                ->where('mdl_enrol.roleid', '=', $role->id)
+                                ->where('mdl_user_enrolments.userid', '!=', auth()->user()->id)
+                                ->join('mdl_user_enrolments', 'mdl_user_enrolments.enrolid', '=', 'mdl_enrol.id')
+                                ->join('mdl_user', 'mdl_user.id', 'mdl_user_enrolments.userid')
+                                ->select('mdl_user.id')->get();
+                                $participantsData = $participantsData->map(function($val){
+                                    return [
+                                        'student_id' => $val->id,
+                                    ];
+                                });
+                                $newInstance->students()->createMany($participantsData);
+                                break;
+                            case 'assign':
+                                $instance = Assignment::find($oldCourseModule->instance);
+                                $newInstance = $this->course->assignment()->create([
+                                    'name' => $instance->name,
+                                    'description' => $instance->description,
+                                    'due_date' => $instance->due_date,
+                                    'start_date' => $instance->start_date,
+                                    'grade' => $instance->grade,
+                                    'activity_remember' => $instance->activity_remember,
+                                ]);
+                                foreach ($instance->configs as $config) {
+                                    $newInstance->configs()->create([
+                                       'name' => $config->name,
+                                       'value' => $config->value,
+                                    ]);
+                                }
+                                break;
+                            case 'quiz':
+                                $instance = Quiz::find($oldCourseModule->instance);
+                                $newInstance = $this->course->quiz()->create(
+                                    collect($instance)->except(['id', 'course_id', 'created_at', 'updated_at'])
+                                );
+                                $role = Role::where('shortname', 'student')->first();
+                                $participantsData = DB::connection('moodle_mysql')
+                                ->table('mdl_enrol')
+                                ->where('mdl_enrol.courseid', '=', $this->course->id)
+                                ->where('mdl_enrol.roleid', '=', $role->id)
+                                ->where('mdl_user_enrolments.userid', '!=', auth()->user()->id)
+                                ->join('mdl_user_enrolments', 'mdl_user_enrolments.enrolid', 'mdl_enrol.id')
+                                ->join('mdl_user', 'mdl_user.id', 'mdl_user_enrolments.userid')
+                                ->select('mdl_user.id')->get();
+    
+                                foreach($participantsData as $participant){
+                                    StudentQuiz::updateOrCreate(
+                                        [
+                                            'student_id' => $participant->id,
+                                            'quiz_id' => $newInstance->id
+                                        ],
+                                        [
+                                            'student_id' => $participant->id,
+                                            'quiz_id' => $newInstance->id
+                                        ],
+                                    );   
+                                }
+                                break;
+                        }
+                        $cm = CourseHelper::addCourseModule($this->course->id, $selectedModule->id, $newInstance->id);
+                        CourseHelper::addContext($cm->id, $this->course->id);
+                        CourseHelper::addCourseModuleToSection($this->course->id, $cm->id, $oldSection->section);
+                    }
+
+
+                } else {
+                    Log::info('not nomor');
+                }
+            }
+        }
+        DB::commit();
+        session()->flash('success', 'Kelas berhasil diimpor');
+        $this->redirect('/course/'.$this->course->shortname);
+    } catch (\Throwable $th) {
+        DB::rollBack();
+        Log::info($th->getMessage());
+    }
+
+};
+
 on(['delete-section' => 'delete_section']);
 
 on(['delete-module' => 'delete_activity']);
@@ -412,7 +709,7 @@ updated(['grading_table_type' => function($e){
                 </button> --}}
             </div>
             @if ($role != 'student')
-            <div class="flex mt-4" >
+            <div class="flex mt-4 gap-x-6" >
                 <button  @click="tab = 'proggress'" :class=" tab == 'proggress' ? 'border-b-[3px]' : 'border-0' " class="flex items-center border-primary pb-2 px-1 transition-all " >
                     <template x-if="tab == 'proggress'" >
                         <x-icons.chartbar  class=" fill-[#09244B] w-5 transition-all" />
@@ -422,7 +719,7 @@ updated(['grading_table_type' => function($e){
                     </template>
                     <p :class="tab == 'proggress' ? 'text-black' : 'text-grey-400' " class="font-medium  ml-2 text-sm transition-all" >Progres</p>
                 </button>
-                <button @click="tab = 'value'" :class=" tab == 'value' ? 'border-b-[3px]' : 'border-0' " class="flex items-center border-primary pb-2 px-1 mx-6 transition-all" >
+                <button @click="tab = 'value'" :class=" tab == 'value' ? 'border-b-[3px]' : 'border-0' " class="flex items-center border-primary pb-2 px-1 transition-all" >
                     <template x-if="tab == 'value'" >
                         <x-icons.coin  class=" fill-[#09244B] w-5 transition-all" />
                     </template>
@@ -439,6 +736,15 @@ updated(['grading_table_type' => function($e){
                         <x-icons.user-fill class="fill-grey-400 transition-all w-5 " />
                     </template>
                     <p :class="tab == 'participants' ? 'text-black' : 'text-grey-400' " class="font-mediumtransition-all ml-2 text-sm" >Peserta</p>
+                </button>
+                <button @click="tab = 'import'" :class=" tab == 'import' ? 'border-b-[3px]' : 'border-0' " class="flex items-center border-primary pb-2 px-1 transition-all" >
+                    <template x-if="tab == 'import'" >
+                        <x-icons.upload  class=" fill-[#09244B] w-5 transition-all" />
+                    </template>
+                    <template x-if="tab != 'import'" >
+                        <x-icons.upload class="fill-grey-400 transition-all w-5 " />
+                    </template>
+                    <p :class="tab == 'import' ? 'text-black' : 'text-grey-400' " class="font-mediumtransition-all ml-2 text-sm" >Import Kelas</p>
                 </button>
             </div>
             @else
@@ -664,6 +970,80 @@ updated(['grading_table_type' => function($e){
                 </div>
             </div>
 
+            <div x-show="tab == 'import'" >
+                <div class="my-6 bg-white px-8 py-4 rounded-xl" >
+                    <p class="font-semibold text-lg mb-2" >Import Kelas</p>
+                    <label for="wordlimit" class="" >
+                        <span class="block label text-gray-600 text-[12px] mb-1" >Pilih Matakuliah</span>
+                        <select wire:change="get_imported_course_info($event.target.value)" name="assignsubmission_file_maxsizebytes" class="text-field w-[250px]" >
+                            <option value="" >-- Pilih Jumlah Maksimal --</option>
+                            @foreach ($enrolled_course ?? [] as $course)
+                            <option value="{{ $course->id }}" >{{ $course->fullname }}</option>
+                            @endforeach
+                        </select>
+                    </label>
+
+                    <p class="font-semibold text-lg mb-2 mt-3" >Konten</p>
+
+                    @foreach ($imported_course_sections ?? [] as $i => $importedSection)
+                    <div class="bg-white px-8 py-5 rounded-xl mb-3 border-grey-300 border" >
+                        <div class="flex items-center">
+                            <input wire:change="handle_checked_imported_section({{ $importedSection->id }})" @checked(array_key_exists($importedSection->id, $selected_imported_contents->toArray())) type="checkbox" class="checkbox w-[18px] h-[18px]">
+                            <p class="font-semibold text-lg ml-2" >
+                                @if (empty($importedSection->name))
+                                {{ $i == 0 ? 'General' : 'Topic '. $i }} 
+                                @else
+                                {{ $importedSection->name  }}
+                                @endif
+                            </p>
+                            
+                        </div>
+                        @foreach ($importedSection->modules as $importedModule)
+                        @php
+                            switch ($importedModule->modname) {
+                                case 'quiz':
+                                    $icon = asset('assets/icons/kuis.svg');
+                                    break;
+                                case 'url':
+                                    $icon = asset('assets/icons/url.svg');
+                                    break;
+                                case 'assign':
+                                    $icon = asset('assets/icons/penugasan.svg');
+                                    break;
+                                case 'attendances':
+                                    $icon = asset('assets/icons/kehadiran.svg');
+                                    break;
+                                case 'resource':
+                                    $icon = asset('assets/icons/berkas_md.svg');
+                                    break;
+                            }
+                        @endphp
+                        <div class="flex border hover:bg-grey-100 items-center border-grey-300 p-5 rounded-xl mt-5" >
+                            <input  
+                                @checked(!empty($selected_imported_contents->get($importedSection->id)) ? in_array($importedModule->id, $selected_imported_contents->get($importedSection->id)) : false) 
+                                type="checkbox" 
+                                class="checkbox w-[18px] h-[18px]"
+                                wire:change="handle_checked_imported_section_module({{ $importedSection->id }}, {{ $importedModule->id }})"
+                            >
+                            <img src="{{ $icon ?? '' }}" class="mx-3 w-10" alt="">
+                            <div>
+                                <p>{{ $importedModule->name }}</p>
+                                <div class="text-sm" >
+                                    {!! $importedModule->description !!}
+                                </div>
+                            </div>
+                        </div>
+                        @endforeach
+                    </div>
+                    @endforeach
+                </div>
+                <div class="flex justify-end gap-3 mt-4" >
+                    <x-button wire:click="import_class" >
+                        Import
+                    </x-button>
+                </div>
+            </div>
+
         </div>
 
 
@@ -790,7 +1170,6 @@ updated(['grading_table_type' => function($e){
                     this.dropdownSection.push(id)
             },
             toggleDropdownModule(id){
-                console.log(id)
                 if(this.dropdownModule.includes(id))
                     this.dropdownModule = this.dropdownModule.filter(e => e !== id)
                 else

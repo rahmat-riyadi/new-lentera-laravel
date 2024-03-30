@@ -31,7 +31,6 @@ mount(function() {
   ->get();
 
   $this->courses = $course;
-
   $this->courses = $this->courses->filter(function($e)  {
     return !($e->startdate > time()) && !($e->enddate < time() && $e->enddate != 0);
   });

@@ -14,7 +14,7 @@ return new class extends Migration
         Schema::create('assignment_configs', function (Blueprint $table) {
             $table->id();
             $table->unsignedBigInteger('assignment_id');
-            $table->foreign('assingment_id')->references('id')->on('assignments');
+            $table->foreign('assignment_id')->references('id')->on('assignments')->onDelete('CASCADE');
             $table->string('name');
             $table->string('value');
             $table->timestamps();
