@@ -67,6 +67,14 @@ class AssignmentForm extends Form
 
     public $file_types;
 
+    // ====================== Assign Files ====================== //
+
+    public $file;
+
+    public $files;
+
+    public $oldFiles;
+
     public function setModel(Course $course){
         $this->course = $course;
     }
@@ -165,6 +173,17 @@ class AssignmentForm extends Form
                 ]);
             }
 
+            if($this->files ?? []){
+                foreach ($this->files ?? [] as $file) {
+                    $path = $file->store('assignment-file');
+                    $instance->files()->create([
+                        'path' => $path,
+                        'name' => $file->getClientOriginalName(),
+                        'size' => $file->getSize(),
+                    ]);
+                }
+            }
+
             $cm = CourseHelper::addCourseModule($this->course->id, $this->module->id, $instance->id);
             CourseHelper::addContext($cm->id, $this->course->id);
             CourseHelper::addCourseModuleToSection($this->course->id, $cm->id, $this->section_num);
@@ -223,6 +242,8 @@ class AssignmentForm extends Form
                     ]
                 ]);
             }
+
+            
 
             DB::commit();
         } catch (\Throwable $th) {

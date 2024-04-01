@@ -302,6 +302,8 @@ mount(function (Course $course,CourseSection $section, Quiz $quiz){
             }, 100)
 
         })
+
+        
         
     </script>
     @endscript

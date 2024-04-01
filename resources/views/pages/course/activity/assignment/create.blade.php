@@ -1,12 +1,14 @@
 <?php
 
-use function Livewire\Volt\{state, mount, on, form};
+use function Livewire\Volt\{state, mount, on, form, updated, usesFileUploads};
 use App\Livewire\Forms\Activity\AssignmentForm;
 use App\Models\{
     Course,
-    CourseSection
+    CourseSection,
+    AssignmentFile,
 };
 
+usesFileUploads();
 state(['course', 'section']);
 form(AssignmentForm::class);
 mount(function (Course $course,CourseSection $section){
@@ -39,7 +41,29 @@ $submit = function (){
         // throw $th;
         Log::info($th->getMessage());
     }
-}
+};
+
+updated([
+    'form.file' => function (){
+        foreach ($this->form->file as $file) {
+            $this->form->files[] = $file;
+        }
+    }
+]);
+
+$deleteFile = function ($id){
+  array_splice($this->form->files, $id, 1);
+};
+
+$deleteOldFile = function ($file){
+    try {
+        AssignmentFile::destroy($file['id']);
+        Storage::delete($file['path']);
+        $this->form->oldFiles = $this->form->assignment->files;
+    } catch (\Throwable $th) {
+        Log::info($th->getMessage());
+    }
+};
 
 ?>
 
@@ -51,6 +75,8 @@ $submit = function (){
             title="Tambah Penugasan"
             :course="$course"
             :section="$section"
+            hold="true"
+            onclick="$store.alert.cancel = true"
         />
 
         <form wire:submit="submit">
@@ -97,7 +123,30 @@ $submit = function (){
                                     <p class="text-grey-500 text-sm" >(pdf, docx, pptx, xlsx <b>Maximum 3MB</b>)</p>
                                 </div>
                             </div>
+                            <input multiple wire:model.live="form.file" name="files" id="file" type="file" class="invisible absolute" />
                         </label>
+                        <div class="flex flex-col mt-4" >
+                            @foreach ($form->oldFiles ?? [] as $i => $item)
+                            <div class="flex items-center px-4 py-2 bg-grey-100 rounded-lg mb-3" >
+                                <img class="w-7 mr-4" src="{{ asset('assets/icons/pdf.svg') }}" >
+                                <div>
+                                    <p class="font-semibold text-sm mb-[2px]" >{{ $item->name}}</p>
+                                    <p class="text-xs text-grey-500"  >{{ $item->size }}</p>
+                                </div>
+                                <span class="ml-auto cursor-pointer" wire:confirm="Yakin ingin hapus file?" wire:click="deleteOldFile({{ $item }})" >X</span>
+                            </div>
+                            @endforeach
+                            @foreach ($form->files ?? [] as $i => $item)
+                            <div class="flex items-center px-4 py-2 bg-grey-100 rounded-lg mb-3" >
+                                <img class="w-7 mr-4" src="{{ asset('assets/icons/pdf.svg') }}" >
+                                <div>
+                                    <p class="font-semibold text-sm mb-[2px]" >{{ $item->getClientOriginalName() }}</p>
+                                    <p class="text-xs text-grey-500"  >{{ $item->getSize() }}</p>
+                                </div>
+                                <span class="ml-auto cursor-pointer" wire:confirm="Yakin ingin hapus file?" wire:click="deleteFile('{{ $i }}')" >X</span>
+                            </div>
+                            @endforeach
+                        </div>
                     </div>
                 </x-collapse>
     

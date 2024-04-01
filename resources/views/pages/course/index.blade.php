@@ -753,8 +753,8 @@ updated(['grading_table_type' => function($e){
         </div>
 
         <div class="px-8">
-            <div x-show="tab == 'proggress'" >
-                <div
+            <div x-show="tab == 'proggress'" class="pt-6" >
+                {{-- <div
                     class="flex items-start overflow-hidden bg-white px-8 py-4 rounded-xl my-6 transition-[height] duration-1000"
                     :class="!showAnnouncement ? 'h-[80px]' : 'h-fit'"
                     style="box-shadow: 0px 3px 6px 0px rgba(16, 24, 40, 0.10);" 
@@ -785,7 +785,7 @@ updated(['grading_table_type' => function($e){
                             rows="5"
                         ></textarea>
                     </div>
-                </div>
+                </div> --}}
     
                 @foreach ($sections as $i => $section)
                 <div class="bg-white px-8 py-5 rounded-xl mb-3" >

@@ -38,6 +38,8 @@ $submit = function (){
         <x-activity-subheader 
             path="/course/{{ $course->shortname }}" 
             title="Tambah Url"
+            hold="true"
+            onclick="$store.alert.cancel = true"
             :course="$course"
             :section="$section"
         />
@@ -137,6 +139,12 @@ $submit = function (){
                 })
             }
         });
+
+
+        window.addEventListener("beforeunload", function(event) {
+            event.preventDefault()
+            event.returnValue = '';
+        }, { capture: true });
 
     </script>
     @endscript

@@ -38,6 +38,8 @@ $submit = function (){
             title="Tambah Kehadiran"
             :course="$course"
             :section="$section"
+            hold="true"
+            onclick="$store.alert.cancel = true"
         />
 
         <form wire:submit="submit">
@@ -186,6 +188,11 @@ $submit = function (){
                 })
             }
         });
+
+        window.addEventListener("beforeunload", function(event) {
+            event.preventDefault()
+            event.returnValue = '';
+        }, { capture: true });
 
     </script>
     @endscript

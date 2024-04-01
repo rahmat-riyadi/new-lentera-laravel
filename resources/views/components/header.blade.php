@@ -23,11 +23,11 @@ state([
                 class="w-[22px] h-[22px]"
             />
         </button>
-        <button class="mr-6" >
+        {{-- <button class="mr-6" >
             <x-icons.chat
                 class="w-[18px] h-[18px]"
             />
-        </button>
+        </button> --}}
         <button wire:click="$toggle('show_account')" class="flex items-center cursor-pointer" >
             <img src="{{ asset('assets/images/avatar.webp') }}" class="w-[42px] h-[42px] rounded-full object-cover mr-3" alt="">
             <span class="hidden md:inline text-sm font-medium mr-4 capitalize" >{{ auth()->user()->firstname . " " . auth()->user()->lastname }}</span>
