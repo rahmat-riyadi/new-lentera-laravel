@@ -25,6 +25,7 @@ $submit = function (){
     $this->form->validate();
     try {
         $this->form->update();
+        session()->flash('success', 'Aktivitas berhasil diubah');
         $this->redirect('/course/'.$this->course->shortname, navigate: true);
     } catch (\Throwable $th) {
         Log::info($th->getMessage());
@@ -54,6 +55,8 @@ $deleteOldFile = function ($id){
             title="Tambah File"
             :course="$course"
             :section="$section"
+            hold="true"
+            onclick="$store.alert.cancel = true"
         />
 
         <form wire:submit="submit">
@@ -137,6 +140,15 @@ $deleteOldFile = function ($id){
     
             </div>
         </form>
+
+        <x-alert
+            show="$store.alert.cancel"
+            onCancel="$store.alert.cancel = false"
+            onOk="$wire.submit()"
+            type="warning"
+            title="Batal"
+            message="Batalkan pembuatan aktivitas ?"
+        />
 
     </div>
 

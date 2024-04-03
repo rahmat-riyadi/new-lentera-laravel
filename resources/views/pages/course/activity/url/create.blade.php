@@ -21,8 +21,8 @@ $submit = function (){
     $this->form->validate();
     
     try {
-        
         $this->form->store();
+        session()->flash('success', 'Aktivitas berhasil dibuat');
         $this->redirect('/course/'.$this->course->shortname, navigate: true);
     } catch (\Throwable $th) {
         // throw $th;

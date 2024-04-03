@@ -119,6 +119,10 @@ mount(function(Course $course){
         ->get();
     }
 
+    if(session()->has('success')){
+        $this->dispatch('notify-delay', 'success', session('success'));
+    }
+
 });
 
 $set_grading_data = function ($type = 'all'){
@@ -324,8 +328,17 @@ $get_sections = function ($course){
                 }
 
                 if($selectedModule->name == 'resource'){
-                    $file = DB::table('resource_files')->where('resource_id', $instance->id)->first('file');
-                    $module->file = url('storage/'.$file->file);   
+                    $files = DB::table('resource_files')->where('resource_id', $instance->id)
+                    ->select(
+                        'id',
+                        'file',
+                        'name',
+                    )
+                    ->get();
+                    $module->file = $files->map(function($e){
+                        $e->file = url("storage/".$e->file);
+                        return $e;
+                    });   
                 }
 
                 $section->modules[] = $module;
@@ -365,6 +378,41 @@ $add_section = function (){
 };
 
 $delete_section = function ($id){
+    $cs = CourseSection::find($id);
+    if(!empty($cs->sequence)){
+        $cmids = explode(',', $cs->sequence);
+        foreach($cmids as $cm){
+            if(is_numeric($cm)){
+                $courseModule = CourseModule::find($cm);
+                $selectedModule = Module::find($courseModule->module);
+                if($selectedModule){
+                    switch ($selectedModule->name) {
+                        case 'url':
+                            $mod_table = 'url';
+                            break;
+                        case 'resource':
+                            $mod_table = 'resource';
+                            break;
+                        case 'attendances':
+                            $mod_table = 'attendances';
+                            break;
+                        case 'assign':
+                            $mod_table = 'assignments';
+                            break;
+                        case 'quiz':
+                            $mod_table = 'quizzes';
+                            break;
+                    }
+                    if(!empty($mod_table)){
+                        $instance = DB::table($mod_table)
+                        ->where('id', $courseModule->instance)
+                        ->delete();
+                    }
+                }
+            }
+        }
+
+    }
     CourseSection::where('id', $id)->delete();
     GlobalHelper::rebuildCourseCache($this->course->id);
     $this->get_sections($this->course);
@@ -850,31 +898,46 @@ updated(['grading_table_type' => function($e){
                                 break;
                         }
                     @endphp
-                    <div class="flex border hover:bg-grey-100 items-center border-grey-300 p-5 rounded-xl mt-5" >
+                    <div class="flex border hover:bg-grey-100 items-start border-grey-300 p-5 rounded-xl mt-5" >
                         <img src="{{ $icon }}" class="mr-3 w-10" alt="">
                         <div>
                             @switch($module->modname)
                                 @case('url')
-                                    <a target="blank" href="{{ $module->url }}" class="text-sm font-semibold mb-1" >
+                                    <a target="blank" href="{{ $module->url }}" class="text font-semibold mb-1" >
                                         {{ $module->name }}
                                     </a>
                                     @break
                                 @case('resource')
-                                    <a target="blank" href="{{ $module->file }}" class="text-sm font-semibold mb-1" >
+                                    @if (count($module->file) == 1)
+                                    <a target="blank" href="{{ $module->file[0]->file }}" class="text font-semibold mb-1" >
                                         {{ $module->name }}
                                     </a>
+                                    @else
+                                    <a target="blank" href="javascript:;" class="text font-semibold mb-1" >
+                                        {{ $module->name }}
+                                    </a>
+                                    @endif
                                     @break
                                 @default
-                                <a wire:navigate href="{{ $detail_url }}" class="text-sm font-semibold mb-1" >
+                                <a wire:navigate href="{{ $detail_url }}" class="text font-semibold mb-1" >
                                     {{ $module->name }}
                                 </a>
                             @endswitch
                             <div class="text-sm" >
                                 {!! $module->description !!}
                             </div>
+                            @if ($module->modname == 'resource' && count($module->file) > 1)
+                            <ul style="list-style-type: circle;" class="mt-2 ml-3" >
+                                @foreach ($module->file as $file)
+                                <li class="mb-1" >
+                                    <a target="blank" class="text-sm font-medium text-blue-600 underline" href="{{ $file->file }}">{{ $file->name }}</a>
+                                </li>
+                                @endforeach
+                            </ul>
+                            @endif
                         </div>
                         @if ($role != 'student')
-                        <div class="relative ml-auto">
+                        <div class="relative ml-auto self-center">
                             <button type="button" @click="toggleDropdownModule({{ $module->id }})" class="w-8 h-8 ml-auto" >
                                 <x-icons.more-svg class="fill-primary" />
                             </button>
@@ -1197,6 +1260,15 @@ updated(['grading_table_type' => function($e){
         })
 
         Livewire.on('notify', ([ type, message ]) => {
+            Alpine.store('toast').show = true
+            Alpine.store('toast').type = type
+            Alpine.store('toast').message = message
+            setTimeout(() => {
+                Alpine.store('toast').show = false
+            }, 2000);
+        })
+
+        Livewire.on('notify-delay', ([ type, message ]) => {
             Alpine.store('toast').show = true
             Alpine.store('toast').type = type
             Alpine.store('toast').message = message

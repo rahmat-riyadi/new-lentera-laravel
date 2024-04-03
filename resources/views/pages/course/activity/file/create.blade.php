@@ -122,9 +122,18 @@ $deleteFile = function ($id){
                         Batal
                     </x-button>
                 </div>
-    
+
             </div>
         </form>
+
+        <x-alert
+            show="$store.alert.cancel"
+            onCancel="$store.alert.cancel = false"
+            onOk="$wire.submit()"
+            type="warning"
+            title="Batal"
+            message="Batalkan pembuatan aktivitas ?"
+        />
 
     </div>
 

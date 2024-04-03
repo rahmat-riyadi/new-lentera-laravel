@@ -61,7 +61,7 @@ $submit = function (){
     @volt
     <div x-data="" class="h-full overflow-y-auto relative">
         <div class="bg-white course-page-header px-8 py-8 font-main flex flex-col" >
-            <x-back-button wire:navigate.hover path="{{ $path ?? '' }}" />
+            <x-back-button  @click="$store.alert.cancel = true" path="javascript:;" />
             <p class="text-sm text-[#656A7B] font-[400] flex items-center my-5" >Matakuliah <span class="mx-2 text-[9px]" > >> </span> {{ $course->fullname }} <span class="mx-2 text-[9px]" > >> </span>  <span class="text-[#121212]" >{{ $quiz->name }} - {{ $section->name }}</span></p>
             <h1 class="text-[#121212] text-xl font-semibold" >Buat Soal</h1>
         </div>
@@ -199,6 +199,7 @@ $submit = function (){
             onCancel="$store.alert.cancel = false"
             type="warning"
             title="Batal"
+            onOk="$wire.submit()"
             message="Batalkan pembuatan aktivitas ?"
         />
         
@@ -256,6 +257,11 @@ $submit = function (){
                 });
             }, 10);
         })
+
+        window.addEventListener("beforeunload", function(event) {
+            event.preventDefault()
+            event.returnValue = '';
+        }, { capture: true });
 
     </script>
     @endscript

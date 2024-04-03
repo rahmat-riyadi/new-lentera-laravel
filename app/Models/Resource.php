@@ -14,6 +14,6 @@ class Resource extends Model
     protected $guarded = ['id'];
 
     public function files(){
-        return $this->hasOne(ResourceFile::class);
+        return $this->hasMany(ResourceFile::class);
     }
 }

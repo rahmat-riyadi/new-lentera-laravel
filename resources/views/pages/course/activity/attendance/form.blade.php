@@ -38,7 +38,7 @@ $submit = function (){
     @volt
     <div x-data class="h-full overflow-y-auto relative">
         <div class=" bg-white course-page-header px-8 py-8 font-main flex flex-col" >
-            <x-back-button wire:navigate.hover path="/course/{{ $this->course->shortname }}/activity/attendance/detail/{{ $courseModule->id }}" />
+            <x-back-button @click="$store.alert.cancel = true" path="javascript:;" />
             <p class="text-sm text-[#656A7B] font-[400] flex items-center my-5" >Matakuliah <span class="mx-2 text-[9px]" > >> </span> {{ $course->fullname }} <span class="mx-2 text-[9px]" > >> </span>  <span >Detail Kehadiran - {{ $section->name }}</span> <span class="mx-2 text-[9px]" > >> </span> <span class="text-[#121212]" >Lakukan Kehadiran </span></p>
             <h1 class="text-[#121212] text-xl font-semibold" >Lakukan Kehadiran</h1>
         </div>
@@ -129,6 +129,7 @@ $submit = function (){
         <x-alert
             show="$store.alert.cancel"
             onCancel="$store.alert.cancel = false"
+            onOk="$wire.submit()"
             type="warning"
             title="Batal"
             message="Batalkan pembuatan aktivitas ?"
@@ -157,43 +158,16 @@ $submit = function (){
                 Alpine.store('toast').show = false
             }, 2000);
         })
+
+        window.addEventListener("beforeunload", function(event) {
+            event.preventDefault()
+            event.returnValue = '';
+        }, { capture: true });
         
     </script>
     @endscript
     
     @endvolt
 
-    {{-- <script>
-
-        const status = ['Hadir', 'Sakit', 'Izin', 'Alpa', 'Tanpa Keterangan']
-
-        var matchedStatus
-
-        $(document).ready(function(){
-            
-            const participantLength = "{{ count($form->students) }}"
-
-            console.log(participantLength)
-
-            var valuesArray = $("input[type='radio']:checked").not("[name='all_status']").map(function() {
-                return $(this).val();
-            }).get()
-
-            for(let i = 0; i < status.length; i++){
-                var count = valuesArray.filter(function(item) {
-                    return item === status[i];
-                }).length;
     
-                if(count === participantLength){
-                    matchedStatus = status[i]
-                    break;
-                }
-            }
-
-            if(matchedStatus){
-                $(`input[name='all_status'][value='${matchedStatus}']`).prop('checked', true)
-            }
-        })
-
-    </script> --}}
 </x-layouts.app>

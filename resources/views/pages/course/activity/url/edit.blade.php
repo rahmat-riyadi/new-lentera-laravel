@@ -25,6 +25,7 @@ $submit = function (){
     try {
         
         $this->form->update();
+        session()->flash('success', 'Aktivitas berhasil diubah');
         $this->redirect('/course/'.$this->course->shortname, navigate: true);
     } catch (\Throwable $th) {
         // throw $th;

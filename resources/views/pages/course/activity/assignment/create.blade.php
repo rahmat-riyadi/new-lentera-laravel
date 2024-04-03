@@ -279,6 +279,7 @@ $deleteOldFile = function ($file){
         <x-alert
             show="$store.alert.cancel"
             onCancel="$store.alert.cancel = false"
+            onOk="$wire.submit()"
             type="warning"
             title="Batal"
             message="Batalkan pembuatan aktivitas ?"
@@ -314,6 +315,11 @@ $deleteOldFile = function ($file){
                 })
             }
         });
+
+        window.addEventListener("beforeunload", function(event) {
+            event.preventDefault()
+            event.returnValue = '';
+        }, { capture: true });
 
     </script>
     @endscript

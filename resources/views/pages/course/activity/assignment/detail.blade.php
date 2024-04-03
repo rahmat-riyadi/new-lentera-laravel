@@ -10,6 +10,7 @@ use App\Models\{
     User,
     Context,
     Role,
+    AssignmentFile,
 };
 
 state([
@@ -75,12 +76,16 @@ mount(function (Course $course,CourseSection $section, Assignment $assignment){
     }
 
     if(session('success')){
-        $this->dispatch('notify-delay', 'Success', session('success'));
+        $this->dispatch('notify-delay', 'success', session('success'));
     }
 
 });
 
 
+$download = function ($id){
+    $file = AssignmentFile::find($id);
+    return response()->download(public_path('storage/'.$file->path), $file->name);
+};
 
 ?>
 
@@ -196,6 +201,24 @@ mount(function (Course $course,CourseSection $section, Assignment $assignment){
             <div class="bg-white p-5 rounded-xl">
                 <h3 class="font-semibold text-lg mb-2" >{{ $assignment->name }}</h3>
                 <p class="text-grey-700 text-sm" > {!! $assignment->description !!}</p>
+                @if (count($assignment->files) > 0)
+                <div class="flex flex-col mt-4" >
+                    @foreach ($assignment->files ?? [] as $i => $item)
+                    <div  class="flex items-center px-4 py-2 bg-grey-100 rounded-lg mb-3" >
+                        <img class="w-7 mr-4" src="{{ asset('assets/icons/berkas_lg.svg') }}" >
+                        <div>
+                            <p class="font-semibold text-sm mb-[2px]" >
+                                <a target="_blank" class="hover:underline" href="{{ url('storage/'.$item->path) }}" >{{ $item->name }}</a>
+                            </p>
+                            <p class="text-xs text-grey-500"  >{{ $item->size }}</p>
+                        </div>
+                        <span class="ml-auto text-sm underline text-blue-500" wire:click="download('{{ $item->id }}')" >
+                            download
+                        </span>
+                    </div>
+                    @endforeach
+                </div>
+                @endif
                 <table class="w-full font-normal md:font-medium mt-4" >
                     <tr>
                         <td style="height: 37px;" class="text-grey-500 text-sm  md:w-[210px]" >Batas Waktu</td>
@@ -234,12 +257,46 @@ mount(function (Course $course,CourseSection $section, Assignment $assignment){
                     </tr>
                 </table>
                 <div class="h-4" ></div>
-                @if (empty($student_submission->grade))
+                @if (empty($student_submission))
                 <a wire:navigate.hover href="/student/assignment/{{ $assignment->id }}/submit" class="btn btn-outlined text-center inline-block w-full md:w-fit">
                     {{ !empty($student_submission) ? 'Ubah' : 'Ajukan' }} Penugasan
                 </a>
                 @endif
-            </div>    
+            </div>
+            @if (!empty($student_submission))
+                @php
+                    $type = $assignment->configs()->where('name', 'type')->first()->value == 'onlinetext' ? 'Text Daring' : 'File';
+                @endphp
+                <div class="bg-white p-5 rounded-xl mt-4" >
+                    <h3 class="font-semibold mb-2" >
+                        {{ $type  }}
+                    </h3>
+                    @if ($type == 'File')
+                    <div class="flex flex-col mt-4" >
+                        @foreach ($student_submission->files as $file)
+                        <div  class="flex items-center px-4 py-2 rounded-lg mb-3 bg-grey-100" >
+                            <img class="w-7 mr-4" src="{{ asset('assets/icons/berkas_lg.svg') }}" >
+                            <p class="font-semibold text-sm mb-[2px]" >
+                                <a target="_blank" class="hover:underline" href="{{ url('storage/'.$file->path) }}" >{{ $file->name }}</a>
+                            </p>
+                        </div>
+                        @endforeach
+                    </div>
+                    @else
+                    <div  class="flex items-center px-4 py-2 pl-0 rounded-lg mb-3" >
+                        <img class="w-7 mr-4" src="{{ asset('assets/icons/url.svg') }}" >
+                        <p class="font-semibold text-sm mb-[2px]" >
+                            <a target="_blank" class="hover:underline underline" href="{{ $student_submission->url->url }}" >{{ $student_submission->url->url }}</a>
+                        </p>
+                    </div>
+                    @endif
+                    @if (empty($student_submission->grade))
+                    <a wire:navigate.hover href="/student/assignment/{{ $assignment->id }}/submit" class="btn btn-outlined text-center inline-block w-full md:w-fit mt-3">
+                        Edit Penugasan
+                    </a>
+                    @endif
+                </div>
+            @endif    
             @endif
         </div>
 

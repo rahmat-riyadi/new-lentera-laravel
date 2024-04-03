@@ -40,6 +40,8 @@ $submit = function (){
             title="Ubah Kehadiran"
             :course="$course"
             :section="$section"
+            hold="true"
+            onclick="$store.alert.cancel = true"
         />
 
         <form wire:submit="submit">
@@ -158,6 +160,15 @@ $submit = function (){
     
             </div>
         </form>
+
+        <x-alert
+            show="$store.alert.cancel"
+            onCancel="$store.alert.cancel = false"
+            onOk="$wire.submit()"
+            type="warning"
+            title="Batal"
+            message="Batalkan pembuatan aktivitas ?"
+        />
 
     </div>
 
