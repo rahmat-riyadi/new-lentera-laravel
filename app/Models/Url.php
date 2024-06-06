@@ -9,7 +9,11 @@ class Url extends Model
 {
     use HasFactory;
 
+    protected $connection = 'moodle_mysql';
+
     protected $guarded = ['id'];
 
-    protected $table = 'url';
+    protected $table = 'mdl_url';
+
+    public $timestamps = false;
 }

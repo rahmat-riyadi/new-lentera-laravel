@@ -39,7 +39,7 @@ state([
 
 mount(function(Course $course){
     $this->grading_table_type = 'all';
-    $ctx = Context::where('contextlevel', 50)->where('instanceid', 4)->first();
+    $ctx = Context::where('contextlevel', 50)->where('instanceid', $course->id)->first();
     $data = DB::connection('moodle_mysql')->table('mdl_role_assignments as ra')
     ->join('mdl_role as r', 'r.id', '=', 'ra.roleid')
     ->where('ra.contextid', $ctx->id)
@@ -142,7 +142,7 @@ $set_grading_data = function ($type = 'all'){
     }
 
     if($type == 'all' || $type == 'assignment'){
-        $selectedAssignment = Assignment::where('course_id', $this->course->id)->orderBy('created_at')->get();
+        $selectedAssignment = Assignment::where('course', $this->course->id)->orderBy('timemodified')->get();
     }
 
     if($type == 'all' || $type == 'attendance'){
@@ -290,7 +290,7 @@ $get_sections = function ($course){
 
                 switch ($selectedModule->name) {
                     case 'url':
-                        $mod_table = 'url';
+                        $mod_table = 'mdl_url';
                         break;
                     case 'resource':
                         $mod_table = 'resource';
@@ -299,32 +299,30 @@ $get_sections = function ($course){
                         $mod_table = 'attendances';
                         break;
                     case 'assign':
-                        $mod_table = 'assignments';
+                        $mod_table = 'mdl_assign';
                         break;
                     case 'quiz':
                         $mod_table = 'quizzes';
                         break;
                 }
 
-                if($selectedModule->name == 'url'){
-                    $fields = ['id', 'name', 'description', 'url'];
-                } else {
-                    $fields = ['id', 'name', 'description'];
-                }
-
                 if(!empty($mod_table)){
-                    $instance = DB::table($mod_table)
+                    $instance = DB::connection('moodle_mysql')->table($mod_table)
                     ->where('id', $cm->instance)
-                    ->first($fields);
+                    ->first();
                 }
 
 
                 $module->name = $instance->name ?? '';
-                $module->description = $instance->description ?? '';
+                $module->description = $instance->intro ?? '';
                 $module->modname = $selectedModule->name;
 
                 if($selectedModule->name == 'url'){
-                    $module->url = $instance->url ?? '';   
+                    $module->url = $instance->externalurl ?? '';   
+                }
+
+                if($selectedModule->name == 'assign'){
+                    
                 }
 
                 if($selectedModule->name == 'resource'){

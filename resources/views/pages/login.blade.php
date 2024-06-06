@@ -107,7 +107,7 @@ $submit = function (){
                             <span class="block label text-gray-600 text-[12px] mb-1" >Username</span>
                             <div class="text-field flex" >
                                 <img src="{{ asset('assets/icons/Peserta.svg') }}" class="mr-2 w-5"  alt=''>
-                                <input wire:model.live="username" id="username" placeholder="Masukkan NIP/NIDN"  class="text-field-base grow peer">
+                                <input autocomplete="off" wire:model.live="username" id="username" placeholder="Masukkan NIP/NIDN"  class="text-field-base grow peer">
                             </div>
                             @error('username')
                             <span class="text-error text-xs " >{{ $message }}</span> 
@@ -118,7 +118,7 @@ $submit = function (){
                             <span class="block label text-gray-600 text-[12px] mb-1" >Password</span>
                             <div class="text-field flex" >
                                 <img src="{{ asset('assets/icons/pass.svg') }}" class="mr-2 w-5"  alt=''>
-                                <input id="pass" wire:model.live="password" placeholder="Masukkan Password" class="text-field-base grow peer">
+                                <input id="pass" wire:model.live="password" autocomplete="off" placeholder="Masukkan Password" class="text-field-base grow peer">
                             </div>
                             @error('password')
                             <span class="text-error text-xs " >{{ $message }}</span> 

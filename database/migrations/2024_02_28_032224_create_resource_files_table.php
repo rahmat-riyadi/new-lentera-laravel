@@ -14,7 +14,7 @@ return new class extends Migration
         Schema::create('resource_files', function (Blueprint $table) {
             $table->id();
             $table->unsignedBigInteger('resource_id');
-            $table->foreign('resource_id')->references('id')->on('resource');
+            $table->foreign('resource_id')->references('id')->on('resource')->onDelete('CASCADE');
             $table->string('file');
             $table->string('name');
             $table->unsignedBigInteger('size');

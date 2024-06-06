@@ -19,7 +19,6 @@ mount(function (Course $course,CourseSection $section, Assignment $assignment){
 });
 
 $handle_change_due_date_type = function ($e){
-    Log::info($e);
 
     if($e == 'time'){
         $this->form->fill([
@@ -188,13 +187,13 @@ $submit = function (){
                                 <option value="" >-- Pilih Jumlah Maksimal --</option>
                                 <option value="3145728" >3 mb</option>
                                 <option value="2097152" >2 mb</option>
-                                <option value="1048576" >1 mb</option>
+                                <option value="0" >1 mb</option>
                                 <option value="512000" >500 kb</option>
                                 <option value="204800" >200 kb</option>
                             </select>
                         </label>
                         <label x-show="$wire.form.submission_type == 'file'" for="wordlimit" class="" >
-                            <span class="block label text-gray-600 text-[12px] mb-1" >Jumlah maksimum kata</span>
+                            <span class="block label text-gray-600 text-[12px] mb-1" >Tipe File</span>
                             <select wire:model="form.file_types" name="assignsubmission_file_filetypeslist" class="text-field" >
                                 <option value="" >-- Pilih Tipe --</option>
                                 <option value="document" >Document (.pdf, .docs, .pptx, dll)</option>

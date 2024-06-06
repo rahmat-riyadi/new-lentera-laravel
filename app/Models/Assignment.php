@@ -11,8 +11,14 @@ class Assignment extends Model
 
     protected $guarded = ['id'];
 
+    protected $table = 'mdl_assign';
+
+    protected $connection = 'moodle_mysql';
+
+    public $timestamps = false;
+
     public function configs(){
-        return $this->hasMany(AssignmentConfig::class);
+        return $this->hasMany(AssignmentConfig::class, 'assignment');
     }
 
     public function files(){

@@ -8,7 +8,7 @@
     x-transition:leave-end="opacity-0"
     x-show="{{ $show }}"
 >
-    <div class="m-auto bg-white min-w-[550px] rounded-lg overflow-hidden transition-all duration-300  ease-in-out p-0" >
+    <div class="m-auto bg-white w-[320px] md:min-w-[550px] rounded-lg overflow-hidden transition-all duration-300  ease-in-out p-0" >
         <div class="flex items-center justify-between px-6 py-4 border-b border-grey-300" >
             <span class="font-semibold text-lg" >{{ $title ?? '' }}</span>
             <button type="button" @click="{{ $onClose ?? '' }}" >

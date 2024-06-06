@@ -3,6 +3,7 @@
 namespace App\Livewire\Forms\Activity;
 
 use App\Helpers\CourseHelper;
+use App\Helpers\GlobalHelper;
 use App\Models\Course;
 use App\Models\Module;
 use App\Models\Url;
@@ -48,8 +49,8 @@ class UrlForm extends Form
         $this->fill([
             'urlInstance' => $url,
             'name' => $url->name,
-            'description' => $url->description,
-            'url' => $url->url,
+            'description' => $url->intro,
+            'url' => $url->externalurl,
         ]);
     }
 
@@ -58,7 +59,11 @@ class UrlForm extends Form
         DB::beginTransaction();
 
         try {
-            $instance = $this->course->url()->create($this->only('name', 'description', 'url'));
+            $instance = $this->course->url()->create([
+                'name' => $this->name,
+                'intro' => $this->description,
+                'externalurl' => $this->url,
+            ]);
             $cm = CourseHelper::addCourseModule($this->course->id, $this->module->id, $instance->id);
             CourseHelper::addContext($cm->id, $this->course->id);
             CourseHelper::addCourseModuleToSection($this->course->id, $cm->id, $this->section_num);
@@ -75,9 +80,10 @@ class UrlForm extends Form
         try {
             $this->urlInstance->update([
                 'name' => $this->name,
-                'description' => $this->description,
-                'url' => $this->url,
+                'intro' => $this->description,
+                'externalurl' => $this->url,
             ]);
+            GlobalHelper::rebuildCourseCache($this->course->id);
         } catch (\Throwable $th) {
             throw $th;
         }

@@ -85,7 +85,7 @@ $submit = function (){
                                 <td>{{ $i+1 }}</td>
                                 <td>
                                     <div class="flex items-center" >
-                                        <img src="{{ ('resources/images/avatar.jpg') }}" class="w-[40px] h-[40px] rounded-full object-cover mr-3" alt="">
+                                        <img src="{{ asset('assets/images/avatar.webp') }}" class="w-[40px] h-[40px] rounded-full object-cover mr-3" alt="">
                                         <div>
                                             <p class="mb-1">{{ $student['name'] }}</p>
                                             <span class="text-grey-500 " >{{ $student['nim'] }}</span>

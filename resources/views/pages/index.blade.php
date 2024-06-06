@@ -28,7 +28,7 @@ mount(function () {
         ->where('ue.timestart', '<=', $time)
         ->where(function ($query) use ($time) {
             $query->where('ue.timeend', '=', 0)
-                    ->orWhere('ue.timeend', '>', $time);
+                    ->orWhere('ue.timeend', '<', $time);
         });
     })
     ->pluck('id');
@@ -51,18 +51,20 @@ mount(function () {
         return $e;
     });
 
-    $assignment = Assignment::whereIn('course_id', $courseids)
-    ->join('moodle402.mdl_course as c', 'c.id', '=', 'assignments.course_id')
-    ->whereNotNull('activity_remember')
-    ->where('activity_remember', '<', \Carbon\Carbon::now())
-    ->select(
-        'assignments.id',
-        'c.fullname as course',
-        'assignments.name',
-        'assignments.due_date',
-        'assignments.activity_remember',
-    )
-    ->get();
+    $assignment = collect([]);
+
+    // $assignment = Assignment::whereIn('course', $courseids)
+    // ->join('mdl_course as c', 'c.id', '=', 'mdl_assign.course')
+    // ->whereNotNull('activity_remember')
+    // // ->where('activity_remember', '<', \Carbon\Carbon::now()->format('Y-m-d'))
+    // ->select(
+    //     'assignments.id',
+    //     'c.fullname as course',
+    //     'assignments.name',
+    //     'assignments.due_date',
+    //     'assignments.activity_remember',
+    // )
+    // ->get();
 
     $assignment = $assignment->map(function($e){
         $e->type = 'assignment';
@@ -70,6 +72,7 @@ mount(function () {
     });
 
     $this->activities = collect($assignment->merge($quiz))->sortBy('due_date');
+
 });
 
 $change_tab = function ($val){
@@ -78,13 +81,15 @@ $change_tab = function ($val){
 };
 
 $change_courses = function ($mode){
+    Log::info(time());
     $this->showed_courses = $this->courses->filter(function($e) use ($mode) {
         if($mode == 'past'){
             return $e->enddate < time() && $e->enddate != 0;
         }
 
         if($mode == 'current'){
-            return !($e->startdate > time()) && !($e->enddate < time() && $e->enddate != 0);
+            // return !($e->startdate > time()) && !($e->enddate < time() && $e->enddate != 0);
+            return (time() >= $e->startdate) && ( time() <= $e->enddate || $e->enddate == 0 );
         }
 
         if($mode == 'starred'){
@@ -191,11 +196,11 @@ $get_courses = function (){
             <div class="bg-white p-4 rounded-xl" >
                 <p class="font-semibold text-lg text-[#121212] mb-4" >Mata Kuliah Baru diakses</p>
                 <div class="grid gap-5 sx:grid-cols-1 sm:grid-cols-2 2xl:grid-cols-3" >
-                    <x-course-card
+                    {{-- <x-course-card
                         idx="1"
-                        studyProgram="Teknik Informatika"
-                        course="kursus "
-                    />
+                        studyProgram="{{ $showed_courses[0]->categoryInfo->name }}"
+                        course="{{ $showed_courses[0]->fullname }}"
+                    /> --}}
                 </div>
             </div>
             <div class="bg-white p-4 rounded-xl mt-7" >

@@ -3,6 +3,7 @@
 namespace App\Livewire\Forms\Activity;
 
 use App\Helpers\CourseHelper;
+use App\Helpers\GlobalHelper;
 use App\Models\Assignment;
 use App\Models\AssignmentConfig;
 use App\Models\Course;
@@ -12,6 +13,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Livewire\Attributes\Rule;
 use Livewire\Form;
+use stdClass;
 
 class AssignmentForm extends Form
 {
@@ -87,12 +89,12 @@ class AssignmentForm extends Form
         $this->assignment = $assignment;
         $this->fill([
             'name' => $assignment->name,
-            'description' => $assignment->description,
-            'activity_remember' => $assignment->activity_remember,
+            'description' => $assignment->intro,
+            'activity_remember' => $assignment->allowsubmissionsfromdate,
         ]);
 
-        $start_date = Carbon::parse($assignment->start_date);
-        $end_date = Carbon::parse($assignment->due_date);
+        $start_date = Carbon::parse($assignment->allowsubmissionsfromdate);
+        $end_date = Carbon::parse($assignment->duedate);
 
         $this->start_date = $start_date->format('Y-m-d');
         $this->due_date = $end_date->format('Y-m-d');
@@ -106,21 +108,37 @@ class AssignmentForm extends Form
             $this->due_date_type = 'date';
         }
 
-        $type = $assignment->configs()->where('name', 'type')->first();
+        $online_text_plugin = $assignment->configs()
+        ->where('subtype', 'assignsubmission')
+        ->where('plugin', 'onlinetext')
+        ->get();
 
-        $this->submission_type = $type->value;
+        $file_plugin = $assignment->configs()
+        ->where('subtype', 'assignsubmission')
+        ->where('plugin', 'file')
+        ->get();
 
-        if($type->value == 'onlinetext'){
-            $wordlimit = $assignment->configs()->where('name', 'wordlimit')->first();
-            $this->word_limit = $wordlimit->value;
+        $online_text_plugin = $online_text_plugin->mapWithKeys(function($plugin){
+            return [  $plugin['name'] => $plugin['value'] ];
+        })->toArray();
+
+        $file_plugin = $file_plugin->mapWithKeys(function($plugin){
+            return [  $plugin['name'] => $plugin['value'] ];
+        })->toArray();
+            
+        Log::info(($online_text_plugin));
+        Log::info(($file_plugin));
+
+        Log::info((boolean)$online_text_plugin['enabled']);
+
+        if((boolean)$online_text_plugin['enabled']){
+            $this->submission_type = 'onlinetext';    
+            $this->word_limit = $online_text_plugin['wordlimit'];
         }
 
-        if($type->value == 'file'){
-            $wordlimit = $assignment->configs()->where('name', 'maxsize')->first();
-            $this->max_size = $wordlimit->value;
-
-            $wordlimit = $assignment->configs()->where('name', 'filetypes')->first();
-            $this->file_types = $wordlimit->value;
+        if((boolean)$file_plugin['enabled']){
+            $this->submission_type = 'file';    
+            $this->max_size = $file_plugin['maxsubmissionsizebytes'];    
         }
 
     }
@@ -136,53 +154,86 @@ class AssignmentForm extends Form
 
             $instance = $this->course->assignment()->create([
                 'name' => $this->name,
-                'description' => $this->description,
-                'due_date' => $due_date,
-                'start_date' => $start_date,
+                'intro' => $this->description,
+                'allowsubmissionsfromdate' => $start_date->unix(),
+                'duedate' => $due_date->unix(),
                 'grade' => 100,
-                'activity_remember' => $this->activity_remember,
             ]);
 
             if($this->submission_type == 'onlinetext'){
                 $instance->configs()->createMany([
                     [
-                    'name' => 'type',
-                    'value' => 'onlinetext',
+                        'plugin' => 'onlinetext',
+                        'subtype' => 'assignsubmission',
+                        'name' => 'enabled',
+                        'value' => 1,
                     ],
                     [
-                    'name' => 'wordlimit',
-                    'value' => $this->word_limit ?? 0,
-                    ]
+                        'plugin' => 'file',
+                        'subtype' => 'assignsubmission',
+                        'name' => 'enabled',
+                        'value' => 0,
+                    ],
+                    [
+                        'plugin' => 'onlinetext',
+                        'subtype' => 'assignsubmission',
+                        'name' => 'wordlimitenabled',
+                        'value' => 1,
+                    ],
+                    [
+                        'plugin' => 'onlinetext',
+                        'subtype' => 'assignsubmission',
+                        'name' => 'wordlimit',
+                        'value' => $this->word_limit,
+                    ],
                 ]);
             }
 
             if($this->submission_type == 'file'){
                 $instance->configs()->createMany([
                     [
-                    'name' => 'type',
-                    'value' => 'file',
+                        'plugin' => 'file',
+                        'subtype' => 'assignsubmission',
+                        'name' => 'enabled',
+                        'value' => 1,
                     ],
                     [
-                        'name' => 'maxsize',
-                        'value' => $this->max_size ?? 0,
+                        'plugin' => 'onlinetext',
+                        'subtype' => 'assignsubmission',
+                        'name' => 'enabled',
+                        'value' => 0,
                     ],
                     [
-                        'name' => 'filetypes',
-                        'value' => $this->max_size ?? "*",
-                    ]
+                        'plugin' => 'file',
+                        'subtype' => 'assignsubmission',
+                        'name' => 'maxfilesubmissions',
+                        'value' => 1,
+                    ],
+                    [
+                        'plugin' => 'file',
+                        'subtype' => 'assignsubmission',
+                        'name' => 'maxsubmissionsizebytes',
+                        'value' => $this->max_size,
+                    ],
+                    [
+                        'plugin' => 'file',
+                        'subtype' => 'assignsubmission',
+                        'name' => 'filetypeslist',
+                        'value' => '',
+                    ],
                 ]);
             }
 
-            if($this->files ?? []){
-                foreach ($this->files ?? [] as $file) {
-                    $path = $file->store('assignment-file');
-                    $instance->files()->create([
-                        'path' => $path,
-                        'name' => $file->getClientOriginalName(),
-                        'size' => $file->getSize(),
-                    ]);
-                }
-            }
+            // if($this->files ?? []){
+            //     foreach ($this->files ?? [] as $file) {
+            //         $path = $file->store('assignment-file');
+            //         $instance->files()->create([
+            //             'path' => $path,
+            //             'name' => $file->getClientOriginalName(),
+            //             'size' => $file->getSize(),
+            //         ]);
+            //     }
+            // }
 
             $cm = CourseHelper::addCourseModule($this->course->id, $this->module->id, $instance->id);
             CourseHelper::addContext($cm->id, $this->course->id);
@@ -200,52 +251,79 @@ class AssignmentForm extends Form
         $start_date = Carbon::parse($this->start_date . ' '. $this->start_time );
         $due_date = Carbon::parse($this->due_date . ' '. $this->due_time );
 
+
         DB::beginTransaction();
 
         try {
+
             $this->assignment->update([
                 'name' => $this->name,
-                'description' => $this->description,
-                'start_date' => $start_date,
-                'due_date' => $due_date,
-                'activity_remember' => $this->activity_remember,
+                'intro' => $this->description,
+                'allowsubmissionsfromdate' => $start_date->unix(),
+                'duedate' => $due_date->unix(),
             ]);
 
-            $this->assignment->configs()->delete();
-
             if($this->submission_type == 'onlinetext'){
-                $this->assignment->configs()->createMany([
-                    [
-                    'name' => 'type',
-                    'value' => 'onlinetext',
-                    ],
-                    [
-                    'name' => 'wordlimit',
-                    'value' => $this->word_limit ?? 0,
-                    ]
+
+                AssignmentConfig::where('plugin', 'onlinetext')
+                ->where('assignment', $this->assignment->id)
+                ->where('subtype', 'assignsubmission')
+                ->where('name', 'enabled')
+                ->update([
+                    'value' => 1
                 ]);
+
+                AssignmentConfig::where('plugin', 'file')
+                ->where('assignment', $this->assignment->id)
+                ->where('subtype', 'assignsubmission')
+                ->where('name', 'enabled')
+                ->update([
+                    'value' => 0
+                ]);
+
+                if($this->word_limit){
+                    AssignmentConfig::where('plugin', 'onlinetext')
+                    ->where('assignment', $this->assignment->id)
+                    ->where('subtype', 'assignsubmission')
+                    ->where('name', 'wordlimit')
+                    ->update([
+                        'value' => $this->word_limit
+                    ]);
+                }
+
             }
 
             if($this->submission_type == 'file'){
-                $this->assignment->configs()->createMany([
-                    [
-                    'name' => 'type',
-                    'value' => 'file',
-                    ],
-                    [
-                        'name' => 'maxsize',
-                        'value' => $this->max_size ?? 0,
-                    ],
-                    [
-                        'name' => 'filetypes',
-                        'value' => $this->max_size ?? "*",
-                    ]
+
+                AssignmentConfig::where('plugin', 'file')
+                ->where('assignment', $this->assignment->id)
+                ->where('subtype', 'assignsubmission')
+                ->where('name', 'enabled')
+                ->update([
+                    'value' => 1
                 ]);
+
+                AssignmentConfig::where('plugin', 'onlinetext')
+                ->where('assignment', $this->assignment->id)
+                ->where('subtype', 'assignsubmission')
+                ->where('name', 'enabled')
+                ->update([
+                    'value' => 0
+                ]);
+                
+                if($this->max_size){
+                    AssignmentConfig::where('plugin', 'file')
+                    ->where('assignment', $this->assignment->id)
+                    ->where('subtype', 'assignsubmission')
+                    ->where('name', 'maxsubmissionsizebytes')
+                    ->update([
+                        'value' => $this->max_size
+                    ]);
+                }
+
             }
-
-            
-
             DB::commit();
+            GlobalHelper::rebuildCourseCache($this->course->id);
         } catch (\Throwable $th) {
             DB::rollBack();
             throw $th;

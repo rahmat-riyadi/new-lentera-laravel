@@ -127,7 +127,7 @@ $submit = function (){
         <div class="p-8">
             <div class="bg-white p-5 rounded-xl" >
                 <div class="flex items-center mb-5"  >
-                    <img src="/images/avatar.jpg" class="w-[40px] h-[40px] rounded-full object-cover mr-3" alt="">
+                    <img src="{{ asset('assets/images/avatar.webp') }}" class="w-[40px] h-[40px] rounded-full object-cover mr-3" alt="">
                     <div class="font-semibold" >
                         <p class="mb-1">{{ $student->fullname }}</p>
                         <span class="text-grey-500 " >{{ $student->nim }}</span>

@@ -92,11 +92,11 @@ $submit_attendance = function (){
                 <p class="text-grey-700 text-sm" >{{{ $attendance->intro }}}</p>
                 <table class="w-full font-medium" >
                     <tr>
-                        <td style="width: 210px; height: 50px;" class="text-grey-500 text-sm" >Tenggat Waktu</td>
+                        <td style="height: 50px;" class="text-grey-500 text-sm  md:w-[210px]" >Tenggat Waktu</td>
                         <td class="text-[#121212] text-sm" >: {{ Carbon\Carbon::parse($attendance->date)->translatedFormat('d F Y') }}, {{ $attendance->starttime }} - {{ $attendance->endtime }}</td>
                     </tr>
                     <tr>
-                        <td style="width: 210px;" class="text-grey-500 text-sm" >Kehadiran dilakukan oleh</td>
+                        <td style="" class="text-grey-500 text-sm  md:w-[210px]" >Kehadiran dilakukan oleh</td>
                         <td class="text-[#121212] text-sm" >: {{ $attendance->filled_by == 'Student' ? 'Mahasiswa' : 'Dosen' }}</td>
                     </tr>
                 </table>
@@ -193,7 +193,7 @@ $submit_attendance = function (){
                 <h3 class="font-semibold text-lg mb-1" >Status Absensi</h3>
                 <table class="w-full font-medium" >
                     <tr>
-                        <td style="width: 210px; height: 50px;" class="text-grey-500 text-sm" >Keterangan</td>
+                        <td style="height: 50px;" class="text-grey-500 text-sm  md:w-[210px]" >Keterangan</td>
                         <td class="text-[#121212] text-sm" >:
                             @switch($student_status->status)
                                 @case('Hadir')
@@ -220,7 +220,7 @@ $submit_attendance = function (){
                         </td>
                     </tr>
                     <tr>
-                        <td style="width: 210px; " class="text-grey-500 text-sm" >Catatan</td>
+                        <td style="" class="text-grey-500 text-sm  md:w-[210px]" >Catatan</td>
                         <td class="text-[#121212] text-sm" >: {{ $student_status->note ?? '-'}}</td>
                     </tr>
                 </table>
@@ -228,7 +228,6 @@ $submit_attendance = function (){
                     $now = \Carbon\Carbon::now();
                     $endtime = \Carbon\Carbon::parse($attendance->date . ' ' . $attendance->endtime);
                     $starttime = \Carbon\Carbon::parse($attendance->date . ' ' . $attendance->starttime);
-                    Log::info($endtime->gt($now)) ;
                 @endphp
                 @if ($attendance->filled_by == 'Student' && $endtime->gt($now) && $starttime->lt($now) )
                 <div class="h-5" ></div>

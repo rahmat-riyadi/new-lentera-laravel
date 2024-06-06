@@ -26,11 +26,11 @@ class Course extends Model
     }
 
     public function url(){
-        return $this->setConnection('mysql')->hasMany(Url::class, 'course_id');
+        return $this->setConnection('mysql')->hasMany(Url::class, 'course');
     }
 
     public function assignment(){
-        return $this->setConnection('mysql')->hasMany(Assignment::class, 'course_id');
+        return $this->hasMany(Assignment::class, 'course');
     }
 
     public function quiz(){
