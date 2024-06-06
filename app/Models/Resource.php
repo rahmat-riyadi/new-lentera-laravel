@@ -9,9 +9,13 @@ class Resource extends Model
 {
     use HasFactory;
 
-    protected $table = 'resource';
+    protected $table = 'mdl_resource';
 
     protected $guarded = ['id'];
+
+    protected $connection = 'moodle_mysql';
+
+    public $timestamps = false;
 
     public function files(){
         return $this->hasMany(ResourceFile::class);

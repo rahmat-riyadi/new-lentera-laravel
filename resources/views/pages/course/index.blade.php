@@ -293,7 +293,7 @@ $get_sections = function ($course){
                         $mod_table = 'mdl_url';
                         break;
                     case 'resource':
-                        $mod_table = 'resource';
+                        $mod_table = 'mdl_resource';
                         break;
                     case 'attendances':
                         $mod_table = 'attendances';
@@ -309,7 +309,7 @@ $get_sections = function ($course){
                 if(!empty($mod_table)){
                     $instance = DB::connection('moodle_mysql')->table($mod_table)
                     ->where('id', $cm->instance)
-                    ->first();
+                    ->first();22
                 }
 
 
