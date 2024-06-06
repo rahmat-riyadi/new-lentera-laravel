@@ -146,7 +146,7 @@ $get_courses = function (){
         <div class="order-2 md:order-1 col-span-full lg:col-span-9">
             <div class="bg-white p-4 rounded-xl mb-7" >
                 <div class="flex items-center mb-3" >
-                    <p class="font-bold mr-auto" >Pengingat Aktivitas</p>
+                    <p class="font-bold mr-auto" >Pengingat Aktivitas {{ asset('moodledir') }}</p>
                     <div class="button flex items-center">
                         <button class="rotate-180 prev-carr-btn mr-2" >
                             <img class="w-[25px]"  src="{{ asset('/assets/icons/arrow-right.svg') }}" alt="">

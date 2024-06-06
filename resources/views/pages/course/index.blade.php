@@ -309,7 +309,7 @@ $get_sections = function ($course){
                 if(!empty($mod_table)){
                     $instance = DB::connection('moodle_mysql')->table($mod_table)
                     ->where('id', $cm->instance)
-                    ->first();22
+                    ->first();
                 }
 
 
@@ -326,15 +326,33 @@ $get_sections = function ($course){
                 }
 
                 if($selectedModule->name == 'resource'){
-                    $files = DB::table('resource_files')->where('resource_id', $instance->id)
-                    ->select(
-                        'id',
-                        'file',
-                        'name',
-                    )
+                    Log::info($cm->id);
+
+                    $file_ctx = DB::connection('moodle_mysql')->table('mdl_context')
+                    ->where('instanceid', $cm->id)
+                    ->where('contextlevel', 70)
+                    ->first('id');
+
+
+
+                    $files = DB::connection('moodle_mysql')->table('mdl_files')
+                    ->where('contextid', $file_ctx->id)
+                    ->where('component', 'mod_resource')
+                    ->whereNotNull('mimetype')
+                    ->whereNotNull('source')
+                    ->orderBy('id')
                     ->get();
+
                     $module->file = $files->map(function($e){
-                        $e->file = url("storage/".$e->file);
+
+                        $filedir = substr($e->contenthash, 0, 4);
+                        $formatted_dir = substr_replace($filedir, '/', 2, 0);
+
+                        $ext = explode('.',$e->filename);
+                        $ext = $ext[count($ext)-1];
+
+                        $e->name = $e->filename;
+                        $e->file = url("moodledir/$formatted_dir/{$e->contenthash}.$ext");
                         return $e;
                     });   
                 }
