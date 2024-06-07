@@ -14,4 +14,14 @@ class GlobalHelper {
         ]);
     }
 
+    public static function get_pathname_hash($contextid, $component, $filearea, $itemid, $filepath, $filename) {
+        if (substr($filepath, 0, 1) != '/') {
+            $filepath = '/' . $filepath;
+        }
+        if (substr($filepath, - 1) != '/') {
+            $filepath .= '/';
+        }
+        return sha1("/$contextid/$component/$filearea/$itemid".$filepath.$filename);
+    }
+
 }

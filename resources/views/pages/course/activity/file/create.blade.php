@@ -9,20 +9,15 @@ use App\Models\{
 
 usesFileUploads();
 
-state(['course', 'section']);
+state(['course', 'section', 'token', 'files']);
 form(ResourceForm::class);
 mount(function (Course $course,CourseSection $section){
+    $this->files = [];
     $this->course = $course;
     $this->section = $section;
     $this->form->setModel($course);
     $this->form->setSection($section->section);
 });
-
-updated([
-    'form.fileResource' => function (){
-        Log::info($this->form->fileResource);
-    }
-]);
 
 $submit = function (){
 
@@ -32,13 +27,34 @@ $submit = function (){
         $this->form->store();
         $this->redirect('/course/'.$this->course->shortname, navigate: true);
     } catch (\Throwable $th) {
-        Log::info($th->getMessage());
+        throw $th;
+        // Log::info($th->getMessage());
     }
 };
 
-$deleteFile = function ($id){
-  array_splice($this->form->fileResource, $id, 1);
+$deleteFile = function ($itemid, $id){
+    try {
+        DB::connection('moodle_mysql')->table('mdl_files')->where('itemid', $itemid)->delete();
+        array_splice($this->uploadedFile, $id, 1);
+    } catch (\Throwable $th) {
+        throw $th;
+    }
 };
+
+on([
+    'add-file' => function ($file){
+
+        $files = DB::connection('moodle_mysql')->table('mdl_files')
+        ->where('itemid', $file['itemid'])
+        ->orderBy('id')
+        ->get()
+        ->toArray();
+
+        array_push($this->form->uploadedFile, $files);
+
+
+    }
+])
 
 ?>
 
@@ -64,7 +80,7 @@ $deleteFile = function ($id){
                 >
                     <div class="grid grid-cols-2 gap-x-7">
                         <label for="urlname" class="" >
-                            <span class="block label text-gray-600 text-[12px] mb-1" >Nama</span>
+                            <span class="block label text-gray-600 text-[12px] mb-1" >Nama </span>
                             <input wire:model="form.name" type="text" id="urlname" placeholder="Masukkan Nama"  class="text-field">
                             @error('form.name')
                             <span class="text-error mt-3 text-sm" >{{ $message ?? 's' }}</span>
@@ -98,17 +114,17 @@ $deleteFile = function ($id){
                                 <p class="text-grey-500 text-sm" >(pdf, docx, pptx, xlsx <b>Maximum 3MB</b>)</p>
                             </div>
                         </div>
-                        <input multiple wire:model.live="form.fileResource" name="files" id="file" type="file" class="invisible absolute" />
+                        <input multiple name="files" id="file" type="file" class="invisible absolute" />
                     </label>
                     <div class="flex flex-col mt-4" >
-                        @foreach ($form->fileResource ?? [] as $i => $item)
+                        @foreach ($form->uploadedFile ?? [] as $i => $item)
                         <div class="flex items-center px-4 py-2 bg-grey-100 rounded-lg mb-3" >
                             <img class="w-7 mr-4" src="{{ asset('assets/icons/pdf.svg') }}" >
                             <div>
-                                <p class="font-semibold text-sm mb-[2px]" >{{ $item->getClientOriginalName() }}</p>
-                                <p class="text-xs text-grey-500"  >{{ $item->getSize() }}</p>
+                                <p class="font-semibold text-sm mb-[2px]" >{{ $item[0]->filename }}</p>
+                                <p class="text-xs text-grey-500"  >{{ $item[0]->filesize }}</p>
                             </div>
-                            <span class="ml-auto" wire:click="deleteFile('{{ $i }}')" >X</span>
+                            <span class="ml-auto" wire:click="deleteFile({{ $item[0]->itemid }}, {{ $i }})" >X</span>
                         </div>
                         @endforeach
                     </div>
@@ -136,6 +152,50 @@ $deleteFile = function ($id){
         />
 
     </div>
+
+    @script
+    <script>
+
+        const file = document.querySelector('#file');
+
+        const token = window.localStorage.getItem('ws_token');
+
+        file.addEventListener('change', (e) => {
+
+            const files = e.target.files; 
+
+            if (files.length > 0) {
+                const formData = new FormData();
+    
+                for (let i = 0; i < files.length; i++) {
+                    formData.append('file', files[i]);
+                    fetch("http://localhost:8888/moodle402/webservice/upload.php?token="+token, {
+                        method: "POST",
+                        body: formData
+                    })
+                    .then(async (response) => {
+                        const res = await response.json();
+                        console.log(res);
+                        $wire.dispatch('add-file', { file: res[0] });
+                    })
+                    .then((json) => console.log(json));
+                }
+    
+            }
+        })
+
+    </script>
+    @endscript
+
+    @script
+    <script>
+
+        const token = window.localStorage.getItem('ws_token');
+
+        $wire.set('token', token);
+
+    </script>
+    @endscript
 
     @script
     <script>

@@ -11,4 +11,11 @@ class ResourceFile extends Model
 
     protected $guarded = ['id'];
 
+    protected $table = 'mdl_files';
+
+    protected $connection = 'moodle_mysql';
+
+    public $timestamps = false;
+
+
 }

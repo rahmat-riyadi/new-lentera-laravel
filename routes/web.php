@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\ActivityController;
 use App\Http\Controllers\CourseController;
+use App\Http\Controllers\FileController;
 use App\Http\Controllers\Student\QuizController as StudentQuizController;
 use App\Http\Controllers\Teacher\AssignmentController;
 use App\Http\Controllers\Teacher\AttendanceController;
@@ -74,6 +75,11 @@ Route::group(['middleware' => 'auth'], function(){
             Route::get('{quiz}/answer', [StudentQuizController::class, 'answer']);
         });
         
+    });
+
+
+    Route::group(['prefix' => 'preview'], function(){
+        Route::get('/file/{id}/{fileName}', [FileController::class, 'view']);
     });
 
 });

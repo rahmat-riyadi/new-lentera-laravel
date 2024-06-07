@@ -36,7 +36,8 @@ class ActivityController extends Controller
                 break;
             case 'resource':
                 $resource = Resource::find($id);
-                return view("pages.course.activity.file.edit", compact('course', 'section', 'resource'));
+                $cm = request()->query('cm');
+                return view("pages.course.activity.file.edit", compact('course', 'section', 'resource', 'cm'));
                 break;
             case 'assign':
                 $assignment = Assignment::find($id);

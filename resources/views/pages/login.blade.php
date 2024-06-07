@@ -22,7 +22,21 @@ $submit = function (){
     $this->validate();
     
     if(Auth::attempt(['username' => $this->username, 'password' => $this->password])){
-        return $this->redirect('/');
+
+        $response = Http::get(env('MOODLE_URL').'/login/token.php', [
+            'username' => $this->username,
+            'password' => $this->password,
+            'service' => 'new-lentera-service',
+        ]);
+
+        Log::info($response);
+
+        if($response->ok()){
+            $this->dispatch('logged_in', $response->body());
+            return;
+        }
+
+        // return $this->redirect('/');
     } 
     
     $this->invalidate = true;
@@ -146,6 +160,18 @@ $submit = function (){
             Username atau Password salah
         </div>
     </div>
+
+    @script
+    <script>
+
+        $wire.on('logged_in', ([ res ]) => {
+            const json = JSON.parse(res);
+            window.localStorage.setItem('ws_token', json.token);
+            window.location.href = '/';
+        })
+
+    </script>
+    @endscript
 
     @endvolt
 </body>
