@@ -146,7 +146,7 @@ $set_grading_data = function ($type = 'all'){
     }
 
     if($type == 'all' || $type == 'attendance'){
-        $selectedAttendance = Attendance::where('course_id', $this->course->id)->orderBy('created_at')->get();
+        $selectedAttendance = Attendance::where('course', $this->course->id)->orderBy('timemodified')->get();
     }
     
     foreach($gradesStudent as $student){
@@ -295,8 +295,8 @@ $get_sections = function ($course){
                     case 'resource':
                         $mod_table = 'mdl_resource';
                         break;
-                    case 'attendances':
-                        $mod_table = 'attendances';
+                    case 'attendance':
+                        $mod_table = 'mdl_attendance';
                         break;
                     case 'assign':
                         $mod_table = 'mdl_assign';
@@ -641,7 +641,7 @@ $import_class = function (){
                                     $newInstance->files()->create(collect($file)->except(['id', 'created_at', 'update_at']));
                                 }
                                 break;
-                            case 'attendances':
+                            case 'attendance':
                                 $instance = Attendance::find($oldCourseModule->instance);
                                 $newInstance = $this->course->attendance()->create([
                                     'name' => $instance->name,
@@ -901,7 +901,7 @@ updated(['grading_table_type' => function($e){
                                 $icon = asset('assets/icons/penugasan.svg');
                                 $detail_url = "/course/{$course->shortname}/activity/assignment/detail/{$module->id}";
                                 break;
-                            case 'attendances':
+                            case 'attendance':
                                 $icon = asset('assets/icons/kehadiran.svg');
                                 $detail_url = "/course/{$course->shortname}/activity/attendance/detail/{$module->id}";
                                 break;

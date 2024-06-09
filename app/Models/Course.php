@@ -42,7 +42,7 @@ class Course extends Model
     }
 
     public function attendance(){
-        return $this->setConnection('mysql')->hasMany(Attendance::class);
+        return $this->hasMany(Attendance::class, 'course');
     }
 
 }

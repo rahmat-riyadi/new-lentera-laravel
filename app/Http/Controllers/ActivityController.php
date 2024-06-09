@@ -47,7 +47,7 @@ class ActivityController extends Controller
                 $quiz = Quiz::find($id);
                 return view("pages.course.activity.quiz.edit", compact('course', 'section', 'quiz'));
                 break;
-            case 'attendances':
+            case 'attendance':
                 $attendance = Attendance::find($id);
                 return view("pages.course.activity.attendance.edit", compact('course', 'section', 'attendance'));
                 break;

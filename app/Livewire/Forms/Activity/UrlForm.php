@@ -68,6 +68,7 @@ class UrlForm extends Form
             CourseHelper::addContext($cm->id, $this->course->id);
             CourseHelper::addCourseModuleToSection($this->course->id, $cm->id, $this->section_num);
             DB::commit();
+            GlobalHelper::rebuildCourseCache($this->course->id);
         } catch (\Throwable $th) {
             DB::rollBack();
             throw $th;

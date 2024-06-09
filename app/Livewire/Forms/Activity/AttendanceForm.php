@@ -3,6 +3,7 @@
 namespace App\Livewire\Forms\Activity;
 
 use App\Helpers\CourseHelper;
+use App\Helpers\GlobalHelper;
 use App\Models\Attendance;
 use App\Models\Course;
 use App\Models\Module;
@@ -15,7 +16,7 @@ use Livewire\Form;
 class AttendanceForm extends Form
 {
     function boot(){
-        $this->module = Module::where('name', 'attendances')->first();
+        $this->module = Module::where('name', 'attendance')->first();
     }
 
     public Module $module;
@@ -32,19 +33,19 @@ class AttendanceForm extends Form
     #[Rule('required', message: 'Deskripsi harus diisi')]
     public $description;
 
-    #[Rule('required', message: 'Tanggal harus diisi')]
+    #[Rule('nullable', message: 'Tanggal harus diisi')]
     public $date;
 
-    #[Rule('required', message: 'Waktu mulai harus diisi')]
+    #[Rule('nullable', message: 'Waktu mulai harus diisi')]
     public $starttime;
 
-    #[Rule('required', message: 'Waktu akhir harus diisi')]
+    #[Rule('nullable', message: 'Waktu akhir harus diisi')]
     public $endtime;
 
     #[Rule('nullable')]
     public $is_repeat;
 
-    #[Rule('required', message:'Pengisi kehadiran harus diisi')]
+    #[Rule('nullable', message:'Pengisi kehadiran harus diisi')]
     public $filled_by;
 
     #[Rule('nullable')]
@@ -56,8 +57,10 @@ class AttendanceForm extends Form
 
     public function setInstance(Attendance $attendance){
         $this->attendance = $attendance;
-        $this->fill($attendance);
-        $this->is_repeat = $this->is_repeat == 1 ? 'on' : '';
+        $this->fill([
+            'name' => $attendance->name,
+            'description' => $attendance->intro,
+        ]);
     }
 
     public function setSection($section_num){
@@ -71,40 +74,51 @@ class AttendanceForm extends Form
         try {
 
             $instance = Attendance::create([
-                'course_id' => $this->course->id,
+                'course' => $this->course->id,
                 'name' => $this->name,
-                'description' => $this->description,
-                'starttime' => $this->starttime,
-                'endtime' => $this->endtime,
-                'date' => $this->date,
-                'is_repeat' => isset($this->is_repeat),
-                'repeat_attempt' => $this->repeat_attempt ?? 0,
-                'filled_by' => $this->filled_by,
+                'intro' => $this->description,
+                'grade' => 100,
+                'timemodified' => time(),
+                'introformat' => 1,
+                'sessiondetailspos' => 'left',
+                'showsessiondetails' => 1,
+                'showextrauserdetails' => 1,
             ]);
 
-            $role = Role::where('shortname', 'student')->first();
+            $status = [
+                [
+                    'attendanceid' => $instance->id,
+                    'acronym' => 'P',
+                    'description' => 'Present',
+                    'grade' => 2.00,
+                ],
+                [
+                    'attendanceid' => $instance->id,
+                    'acronym' => 'A',
+                    'description' => 'Absent',
+                    'grade' => 0.00,
+                ],
+                [
+                    'attendanceid' => $instance->id,
+                    'acronym' => 'L',
+                    'description' => 'Late',
+                    'grade' => 1.00,
+                ],
+                [
+                    'attendanceid' => $instance->id,
+                    'acronym' => 'E',
+                    'description' => 'Excused',
+                    'grade' => 1.00,
+                ],
+            ];
 
-            $participantsData = DB::connection('moodle_mysql')
-            ->table('mdl_enrol')
-            ->where('mdl_enrol.courseid', '=', $this->course->id)
-            ->where('mdl_enrol.roleid', '=', $role->id)
-            ->where('mdl_user_enrolments.userid', '!=', auth()->user()->id)
-            ->join('mdl_user_enrolments', 'mdl_user_enrolments.enrolid', '=', 'mdl_enrol.id')
-            ->join('mdl_user', 'mdl_user.id', 'mdl_user_enrolments.userid')
-            ->select('mdl_user.id')->get();
-
-            $participantsData = $participantsData->map(function($val){
-                return [
-                    'student_id' => $val->id,
-                ];
-            });
-
-            $instance->students()->createMany($participantsData);
+            $instance->statuses()->createMany($status);
 
             $cm = CourseHelper::addCourseModule($this->course->id, $this->module->id, $instance->id);
             CourseHelper::addContext($cm->id, $this->course->id);
             CourseHelper::addCourseModuleToSection($this->course->id, $cm->id, $this->section_num);
             DB::commit();
+            GlobalHelper::rebuildCourseCache($this->course->id);
         } catch (\Throwable $th) {
             DB::rollBack();
             throw $th;
@@ -116,15 +130,10 @@ class AttendanceForm extends Form
         try {
             $this->attendance->update([
                 'name' => $this->name,
-                'description' => $this->description,
-                'starttime' => $this->starttime,
-                'endtime' => $this->endtime,
-                'date' => $this->date,
-                'is_repeat' => isset($this->is_repeat),
-                'repeat_attempt' => $this->repeat_attempt ?? 0,
-                'filled_by' => $this->filled_by,
+                'intro' => $this->description,
             ]);
             DB::commit();
+            GlobalHelper::rebuildCourseCache($this->course->id);
         } catch (\Throwable $th) {
             DB::rollBack();
             throw $th;

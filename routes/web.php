@@ -53,6 +53,7 @@ Route::group(['middleware' => 'auth'], function(){
     
     Route::group(['prefix' => 'teacher'], function(){
         Route::group(['prefix' => 'attendance'], function(){
+            Route::get('session/{attendance}', [AttendanceController::class, 'form']);
             Route::get('form/{attendance}', [AttendanceController::class, 'form']);
         });
     

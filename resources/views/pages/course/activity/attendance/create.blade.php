@@ -73,7 +73,7 @@ $submit = function (){
                     </div>
                 </x-collapse>
 
-                <x-collapse
+                {{-- <x-collapse
                     title="Waktu Kehadiran"
                     x-data="collapse"
                     x-show="expand"
@@ -144,7 +144,7 @@ $submit = function (){
                             <span class="text-error mt-3 text-sm" >{{ $message }}</span>
                         @enderror
                     </div>
-                </x-collapse>
+                </x-collapse> --}}
     
     
                 <div class="flex justify-end gap-3 mt-4" >
