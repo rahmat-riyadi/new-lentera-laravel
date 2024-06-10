@@ -23,8 +23,6 @@ class AttendanceController extends Controller
         ->orderBy('added', 'DESC')
         ->first();
 
-        Log::info($courseModule);
-
         $section = CourseSection::find($courseModule->section);
         $course = Course::find($courseModule->course);
 
@@ -35,6 +33,28 @@ class AttendanceController extends Controller
                 'section',
                 'course',
                 'courseModule'
+            )
+        );
+    }
+
+    public function session(Attendance $attendance){
+
+        $mod = Module::where('name', 'attendances')->first();
+
+        $courseModule = CourseModule::where('instance', $attendance->id)
+        ->where('module', $mod->id)
+        ->orderBy('added', 'DESC')
+        ->first();
+
+        $section = CourseSection::find($courseModule->section);
+        $course = Course::find($courseModule->course);
+
+        return view('pages.course.activity.attendance.session', 
+        compact(
+            'attendance',
+            'section',
+            'course',
+            'courseModule'
             )
         );
     }
