@@ -36,6 +36,7 @@ export default {
         },
         error: {
           DEFAULT: '#FF5630',
+          light: '#FAEAE7'
         },
       },
     },

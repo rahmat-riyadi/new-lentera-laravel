@@ -59,4 +59,26 @@ class AttendanceController extends Controller
         );
     }
 
+    public function addSession(Attendance $attendance){
+
+        $mod = Module::where('name', 'attendances')->first();
+
+        $courseModule = CourseModule::where('instance', $attendance->id)
+        ->where('module', $mod->id)
+        ->orderBy('added', 'DESC')
+        ->first();
+
+        $section = CourseSection::find($courseModule->section);
+        $course = Course::find($courseModule->course);
+
+        return view('pages.course.activity.attendance.add-session', 
+        compact(
+            'attendance',
+            'section',
+            'course',
+            'courseModule'
+            )
+        );
+    }
+
 }
