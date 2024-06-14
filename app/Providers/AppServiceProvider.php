@@ -21,5 +21,6 @@ class AppServiceProvider extends ServiceProvider
     public function boot(): void
     {
         Model::unguard();
+        date_default_timezone_set('Asia/Makassar');
     }
 }

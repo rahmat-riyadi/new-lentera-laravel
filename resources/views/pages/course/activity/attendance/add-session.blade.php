@@ -23,7 +23,7 @@ $submit = function (){
     $this->form->validate();
     try {
         $this->form->store();
-        $this->redirect('/teacher/attendance/session/'.$this->attendance->id, navigate: true);
+        $this->redirect('/teacher/attendance/'.$this->attendance->id.'/session/', navigate: true);
     } catch (\Throwable $th) {
         Log::info($th->getMessage());
         throw $th;

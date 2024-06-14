@@ -1,30 +1,30 @@
 <?php
 
-use function Livewire\Volt\{state, mount, on, form, updated, usesFileUploads};
-use App\Livewire\Forms\Activity\AttendanceForm;
+use function Livewire\Volt\{state, mount, form};
+use App\Livewire\Forms\Attendance\SessionForm;
 use App\Models\{
     Course,
     CourseSection,
-    Attendance
+    Attendance,
+    User,
+    StudentAttendance,
+    Context,
 };
 
-usesFileUploads();
+form(SessionForm::class);
 
-state(['course', 'section']);
-form(AttendanceForm::class);
-mount(function (Course $course, CourseSection $section, Attendance $attendance){
-    $this->course = $course;
-    $this->section = $section;
-    $this->form->setInstance($attendance);
-    $this->form->setModel($course);
-    $this->form->setSection($section->section);
+state(['course', 'section', 'attendance', 'sessions']);
+
+mount(function (Course $course,CourseSection $section, Attendance $attendance, $session){
+    $this->form->attendance = $attendance;
+    $this->form->setInstance($session);
 });
 
 $submit = function (){
     $this->form->validate();
     try {
         $this->form->update();
-        $this->redirect('/course/'.$this->course->shortname, navigate: true);
+        $this->redirect('/teacher/attendance/'.$this->attendance->id.'/session/', navigate: true);
     } catch (\Throwable $th) {
         Log::info($th->getMessage());
         throw $th;
@@ -32,19 +32,14 @@ $submit = function (){
 };
 
 ?>
+
 <x-layouts.app>
     @volt
     <div x-data class="h-full overflow-y-auto relative">
-
         <div class="bg-white course-page-header px-8 py-8 font-main flex flex-col" >
             <x-back-button @click="$store.alert.cancel = true" path="javascript:;" />
-            <p class="text-sm text-[#656A7B] font-[400] flex flex-wrap leading-7 items-center my-5" >Matakuliah <span class="mx-2 text-[9px]" > >> </span> {{ $course->fullname }} <span class="mx-2 text-[9px]" > >> </span>  <span class="text-[#121212]" >Ubah Kehadiran - {{ $section->name }}</span></p>
-            <div class="flex items-center justify-between" >
-                <h1 class="text-[#121212] text-xl font-semibold" >Ubah Kehadiran - {{ $section->name }}</h1>
-                <a href="/teacher/attendance/{{ $form->attendance->id }}/session" class="btn-primary">
-                    Pengaturan Sesi
-                </a>
-            </div>
+            <p class="text-sm text-[#656A7B] font-[400] flex flex-wrap leading-7 items-center my-5" >Matakuliah <span class="mx-2 text-[9px]" > >> </span> {{ $course->fullname }} <span class="mx-2 text-[9px]" > >> </span>  <span class="" >Kehadiran - {{ $section->name }}</span>  <span class="mx-2 text-[9px]" > >> </span>  <span class="text-[#121212]" >Tambah Sesi </span></p>
+            <h1 class="text-[#121212] text-xl font-semibold" >Tambah Sesi - {{ $section->name }}</h1>
         </div>
 
         <form wire:submit="submit">
@@ -55,23 +50,25 @@ $submit = function (){
                     x-data="collapse"
                     x-show="expand"
                 >
-                    <div class="grid grid-cols-2 gap-x-7">
-                        <label for="urlname" class="" >
-                            <span class="block label text-gray-600 text-[12px] mb-1" >Nama</span>
-                            <input wire:model="form.name" type="text" id="urlname" placeholder="Masukkan Nama"  class="text-field">
-                            @error('form.name')
-                            <span class="text-error mt-3 text-sm" >{{ $message ?? 's' }}</span>
+                    <div class="grid grid-cols-3 gap-x-7">
+                        <label for="date">
+                            <span class="block label text-gray-600 text-[12px] mb-1" >Tanggal</span>
+                            <input wire:model="form.date" name="date" type="date" id="date" placeholder="Masukkan URL"  class="text-field">
+                            @error('form.date')
+                                <span class="text-error mt-3 text-sm" >{{ $message }}</span>
                             @enderror
                         </label>
-                    </div>
-                    <div class="mt-3">
-                        <label for="description">
-                            <span class="block label text-gray-600 text-[12px] mb-1" >Deskripsi</span>
-                            <div wire:ignore >
-                                <textarea>{{ $form->description }}</textarea>
-                            </div>
-                            <input type="hidden" name="intro" />
-                            @error('form.description')
+                        <label for="timeStart">
+                            <span class="block label text-gray-600 text-[12px] mb-1" >Waktu mulai</span>
+                            <input wire:model="form.time_start" name="startTime" type="time" id="timeStart" placeholder="Masukkan URL"  class="text-field">
+                            @error('form.time_start')
+                                <span class="text-error mt-3 text-sm" >{{ $message }}</span>
+                            @enderror
+                        </label>
+                        <label for="timeEnd">
+                            <span class="block label text-gray-600 text-[12px] mb-1" >Waktu akhir</span>
+                            <input  wire:model="form.time_end" name="endTime" type="time" id="timeEnd" placeholder="Masukkan URL"  class="text-field">
+                            @error('form.time_end')
                                 <span class="text-error mt-3 text-sm" >{{ $message }}</span>
                             @enderror
                         </label>
@@ -117,7 +114,7 @@ $submit = function (){
                         <div>
                             <span class="block label text-gray-600 mb-2" >Apakah anda ingin mengulang sesi</span>
                             <label for="remember" class="flex items-center" >
-                                <input value="1" wire:model="form.is_repeat" type="checkbox" value="1" name="repeat" class="checkbox w-[18px] h-[18px]" id="remember">
+                                <input value="1" wire:model="form.is_repeat" type="checkbox" name="repeat" class="checkbox w-[18px] h-[18px]" id="remember">
                                 <span class="text-sm ml-2" >Ulang Sesi</span>
                             </label>
                         </div>
@@ -150,6 +147,29 @@ $submit = function (){
                         @enderror
                     </div>
                 </x-collapse> --}}
+
+                <x-collapse
+                    title="Pengisi Kehadiran"
+                    x-data="collapse"
+                    x-show="expand"
+                >
+                    <div>
+                        <span class="block label text-gray-600 mb-4 mt-3" >Kehadiran diisi oleh</span>
+                        <div class="grid grid-cols-6" >
+                            <label for="filledByDosen" class="flex items-center mb-4" >
+                                <input wire:model="form.fillable_type" value="dosen" name="filledBy" id="filledByDosen" type="radio" class="radio">
+                                <span class="font-medium text-sm text-grey-700 ml-2" >Dosen</span>
+                            </label>
+                            <label for="filledByMahasiswa" class="flex items-center mb-4" >
+                                <input wire:model="form.fillable_type" value="mahasiswa" name="filledBy" id="filledByMahasiswa" type="radio" class="radio">
+                                <span class="font-medium text-sm text-grey-700 ml-2" >Mahasiswa</span>
+                            </label>
+                        </div>
+                        @error('form.fillable_type')
+                            <span class="text-error mt-3 text-sm" >{{ $message }}</span>
+                        @enderror
+                    </div>
+                </x-collapse> 
     
     
                 <div class="flex justify-end gap-3 mt-4" >
@@ -163,15 +183,6 @@ $submit = function (){
     
             </div>
         </form>
-
-        <x-alert
-            show="$store.alert.cancel"
-            onCancel="$store.alert.cancel = false"
-            onOk="$wire.submit()"
-            type="warning"
-            title="Batal"
-            message="Batalkan pembuatan aktivitas ?"
-        />
 
     </div>
 
@@ -191,22 +202,7 @@ $submit = function (){
             }
         }))
 
-        tinymce.init({
-            selector: 'textarea',
-            plugins: 'anchor autolink charmap codesample emoticons link lists searchreplace table visualblocks wordcount',
-            toolbar: 'undo redo | blocks fontfamily fontsize | bold italic underline strikethrough | link table | align lineheight | numlist bullist indent outdent | emoticons charmap | removeformat',
-            setup: editor => {
-                editor.on('change', e => {
-                    document.querySelector('input[type=hidden]').value = tinymce.activeEditor.getContent()
-                    $wire.$set('form.description', tinymce.activeEditor.getContent())
-                })
-            }
-        });
-
-        window.addEventListener("beforeunload", function(event) {
-            event.preventDefault()
-            event.returnValue = '';
-        }, { capture: true });
+        
 
     </script>
     @endscript

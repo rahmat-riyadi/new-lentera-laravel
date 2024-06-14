@@ -10,6 +10,7 @@ use App\Models\CourseModule;
 use App\Models\CourseSection;
 use App\Models\Module;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
 class AttendanceController extends Controller
@@ -79,6 +80,30 @@ class AttendanceController extends Controller
             'courseModule'
             )
         );
+    }
+
+    public function editSession(Attendance $attendance, $session){
+
+        $mod = Module::where('name', 'attendances')->first();
+
+        $courseModule = CourseModule::where('instance', $attendance->id)
+        ->where('module', $mod->id)
+        ->orderBy('added', 'DESC')
+        ->first();
+
+        $section = CourseSection::find($courseModule->section);
+        $course = Course::find($courseModule->course);
+
+        return view('pages.course.activity.attendance.edit-session', 
+        compact(
+            'attendance',
+            'section',
+            'course',
+            'courseModule',
+            'session'
+            )
+        );
+
     }
 
 }

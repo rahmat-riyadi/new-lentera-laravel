@@ -54,8 +54,10 @@ Route::group(['middleware' => 'auth'], function(){
     Route::group(['prefix' => 'teacher'], function(){
         Route::group(['prefix' => 'attendance'], function(){
             Route::get('form/{attendance}', [AttendanceController::class, 'form']);
-            Route::get('session/{attendance}', [AttendanceController::class, 'session']);
-            Route::get('session/{attendance}/add', [AttendanceController::class, 'addSession']);
+            Route::get('/{attendance}/session/', [AttendanceController::class, 'session']);
+            Route::get('/{attendance}/session/add', [AttendanceController::class, 'addSession']);
+            Route::get('/{attendance}/session/{session}', [AttendanceController::class, 'session']);
+            Route::get('/{attendance}/session/{session}/edit', [AttendanceController::class, 'editSession']);
         });
     
         Route::group(['prefix' => 'assignment'], function(){
