@@ -932,7 +932,7 @@ updated(['grading_table_type' => function($e){
                                     @endif
                                     @break
                                 @default
-                                <a wire:navigate href="{{ $detail_url }}" class="text font-semibold mb-1" >
+                                <a wire:navigate.hover href="{{ $detail_url }}" class="text font-semibold mb-1" >
                                     {{ $module->name }}
                                 </a>
                             @endswitch
@@ -1256,6 +1256,7 @@ updated(['grading_table_type' => function($e){
                 Livewire.dispatch('delete-section', { id })
             },
             createActivity(){
+                // window.location.href = `/course/${this.course.shortname}/activity/create/${this.activity.current}/section/${this.activity.section}`
                 Livewire.navigate(`/course/${this.course.shortname}/activity/create/${this.activity.current}/section/${this.activity.section}`)
             },
             editModule(mod, id, section, cm = null){
@@ -1263,7 +1264,9 @@ updated(['grading_table_type' => function($e){
 
                 if(mod == 'resource'){
                     Livewire.navigate(`/course/${this.course.shortname}/activity/update/${mod}/instance/${id}/section/${section}?cm=${cm}`)
+                    // window.location.href = `/course/${this.course.shortname}/activity/update/${mod}/instance/${id}/section/${section}?cm=${cm}`
                 } else {
+                    // window.location.href = `/course/${this.course.shortname}/activity/update/${mod}/instance/${id}/section/${section}`
                     Livewire.navigate(`/course/${this.course.shortname}/activity/update/${mod}/instance/${id}/section/${section}`)
                 }
 
