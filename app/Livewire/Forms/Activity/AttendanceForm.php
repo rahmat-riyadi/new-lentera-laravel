@@ -110,6 +110,12 @@ class AttendanceForm extends Form
                     'description' => 'Excused',
                     'grade' => 1.00,
                 ],
+                [
+                    'attendanceid' => $instance->id,
+                    'acronym' => 'S',
+                    'description' => 'Sick',
+                    'grade' => 1.00,
+                ],
             ];
 
             $instance->statuses()->createMany($status);

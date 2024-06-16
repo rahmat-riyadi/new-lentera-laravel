@@ -57,6 +57,7 @@ Route::group(['middleware' => 'auth'], function(){
             Route::get('/{attendance}/session/', [AttendanceController::class, 'session']);
             Route::get('/{attendance}/session/add', [AttendanceController::class, 'addSession']);
             Route::get('/{attendance}/session/{session}', [AttendanceController::class, 'session']);
+            Route::get('/{attendance}/session/{session}/detail', [AttendanceController::class, 'detailSession']);
             Route::get('/{attendance}/session/{session}/edit', [AttendanceController::class, 'editSession']);
         });
     

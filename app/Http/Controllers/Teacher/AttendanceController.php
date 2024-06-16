@@ -40,7 +40,7 @@ class AttendanceController extends Controller
 
     public function session(Attendance $attendance){
 
-        $mod = Module::where('name', 'attendances')->first();
+        $mod = Module::where('name', 'attendance')->first();
 
         $courseModule = CourseModule::where('instance', $attendance->id)
         ->where('module', $mod->id)
@@ -62,7 +62,7 @@ class AttendanceController extends Controller
 
     public function addSession(Attendance $attendance){
 
-        $mod = Module::where('name', 'attendances')->first();
+        $mod = Module::where('name', 'attendance')->first();
 
         $courseModule = CourseModule::where('instance', $attendance->id)
         ->where('module', $mod->id)
@@ -84,7 +84,7 @@ class AttendanceController extends Controller
 
     public function editSession(Attendance $attendance, $session){
 
-        $mod = Module::where('name', 'attendances')->first();
+        $mod = Module::where('name', 'attendance')->first();
 
         $courseModule = CourseModule::where('instance', $attendance->id)
         ->where('module', $mod->id)
@@ -95,6 +95,30 @@ class AttendanceController extends Controller
         $course = Course::find($courseModule->course);
 
         return view('pages.course.activity.attendance.edit-session', 
+        compact(
+            'attendance',
+            'section',
+            'course',
+            'courseModule',
+            'session'
+            )
+        );
+
+    }
+
+    public function detailSession(Attendance $attendance, $session){
+
+        $mod = Module::where('name', 'attendance')->first();
+
+        $courseModule = CourseModule::where('instance', $attendance->id)
+        ->where('module', $mod->id)
+        ->orderBy('added', 'DESC')
+        ->first();
+
+        $section = CourseSection::find($courseModule->section);
+        $course = Course::find($courseModule->course);
+
+        return view('pages.course.activity.attendance.form', 
         compact(
             'attendance',
             'section',

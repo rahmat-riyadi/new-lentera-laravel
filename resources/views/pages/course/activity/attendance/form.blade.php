@@ -14,12 +14,12 @@ use App\Models\{
 form(FillForm::class);
 state(['course', 'section', 'attendance', 'students', 'courseModule']);
 
-mount(function (Course $course,CourseSection $section, Attendance $attendance, CourseModule $courseModule){
+mount(function (Course $course,CourseSection $section, Attendance $attendance, CourseModule $courseModule, $session){
     $this->course = $course;
     $this->section = $section;
     $this->attendance = $attendance;
     $this->courseModule = $courseModule;
-    $this->form->setModel($attendance);
+    $this->form->setModel($attendance, $courseModule, $session);
 });
 
 $submit = function (){
@@ -45,6 +45,30 @@ $submit = function (){
 
         <form wire:submit="submit">
             <div class="p-8" >
+
+                <div class="bg-white py-3 px-5 flex gap-x-5 mb-5">
+                    <span>
+                        <span class="chip attend px-2 py-1 mr-1" >H</span>
+                        <span class="font-medium text-sm" >Hadir</span>
+                    </span>
+                    <span>
+                        <span class="chip sick px-2 py-1 mr-1" >S</span>
+                        <span class="font-medium text-sm" >Sakit</span>
+                    </span>
+                    <span>
+                        <span class="chip late px-2 py-1 mr-1" >T</span>
+                        <span class="font-medium text-sm" >Terlambat</span>
+                    </span>
+                    <span>
+                        <span class="chip assignment px-2 py-1 mr-1" >I</span>
+                        <span class="font-medium text-sm" >Izin</span>
+                    </span>
+                    <span>
+                        <span class="chip absen px-2 py-1 mr-1" >A</span>
+                        <span class="font-medium text-sm" >Alpa</span>
+                    </span>
+                </div>
+
                 <div class="bg-white p-4" >
                     <table class=" w-full"  >
                         <thead class="table-head" >
@@ -85,7 +109,7 @@ $submit = function (){
                                 <td>{{ $i+1 }}</td>
                                 <td>
                                     <div class="flex items-center" >
-                                        <img src="{{ asset('assets/images/avatar.webp') }}" class="w-[40px] h-[40px] rounded-full object-cover mr-3" alt="">
+                                        <img src="{{ $student['picture'] }}" class="w-[40px] h-[40px] rounded-full object-cover mr-3" alt="">
                                         <div>
                                             <p class="mb-1">{{ $student['name'] }}</p>
                                             <span class="text-grey-500 " >{{ $student['nim'] }}</span>
@@ -105,7 +129,7 @@ $submit = function (){
                                     <input wire:model="form.students.{{ $i }}.status" value="Alpa" name="{{ $student['id'] }}_status" id="student_status" type="radio" class="radio">
                                 </td>
                                 <td class="text-center" >
-                                    <input wire:model="form.students.{{ $i }}.status" value="Tanpa Keterangan" name="{{ $student['id'] }}_status" id="student_status" type="radio" class="radio">
+                                    <input wire:model="form.students.{{ $i }}.status" value="Terlambat" name="{{ $student['id'] }}_status" id="student_status" type="radio" class="radio">
                                 </td>
                                 <td class="pr-3 pl-6" >
                                     <input wire:model="form.students.{{ $i }}.note" name="{{ $student['id'] }}_note" class="text-field" />

@@ -78,7 +78,7 @@ mount(function (Course $course,CourseSection $section, Attendance $attendance){
                             </td>
                             <td class="py-16 pr-5" >
                                 <div class="flex justify-end" >
-                                    <a class="btn-light h" href="">
+                                    <a class="btn-light h" href="/teacher/attendance/{{ $attendance->id }}/session/{{ $session->id }}/detail">
                                         Absen
                                     </a>
                                     <a class="btn-light bg-secodary-light text-secodary mx-4" href="/teacher/attendance/{{ $attendance->id }}/session/{{ $session->id }}/edit">
