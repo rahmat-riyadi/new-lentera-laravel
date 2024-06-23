@@ -104,6 +104,8 @@ class FillForm extends Form
 
             $studentLog = $log->firstWhere('studentid', $student->id);
 
+            $record['status'] = null;
+
             if($studentLog){
                 $status = $this->statuses->firstWhere('id', $studentLog->statusid);
                 switch ($status->acronym) {
@@ -134,10 +136,37 @@ class FillForm extends Form
         try {
             
             foreach($this->students as $s){
-                StudentAttendance::where('id', $s['attendance_id'])->update([
-                    'status' => $s['status'],
-                    'note' => $s['note'],
-                ]);
+                
+                switch ($s['status']) {
+                    case 'Hadir':
+                        $status = $this->statuses->firstWhere('name', 'Present'); 
+                        break;
+                    case 'Izin':
+                        $status = $this->statuses->firstWhere('name', 'Excused'); 
+                        break;
+                    case 'Sakit':
+                        $status = $this->statuses->firstWhere('name', 'Sick'); 
+                        break;
+                    case 'Alpa':
+                        $status = $this->statuses->firstWhere('name', 'Absent'); 
+                        break;
+                }
+
+                DB::connection('moodle_mysql')
+                ->table('mdl_attendance_log')
+                ->where('sessionid', $this->session_id)
+                ->updateOrInsert(
+                    [
+                        'studentid' => $s['id'],
+                    ],
+                    [
+                        'statusid' => $status['id'],
+                        'statusset' => $this->statuses->pluck(),
+                    ]
+                );
+
+
+                Log::info($this->students);
             }
 
         } catch (\Throwable $th) {
