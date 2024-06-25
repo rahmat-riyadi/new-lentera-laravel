@@ -22,10 +22,13 @@ mount(function (Course $course,CourseSection $section, Attendance $attendance, C
     $this->form->setModel($attendance, $courseModule, $session);
 });
 
-$submit = function (){
+$submit = function ($back = false){
     try {
         $this->form->submit();  
         $this->dispatch('notify', 'success', 'Absen berhasil disimpan');
+        if($back) {
+            $this->redirect("/teacher/attendance/{$this->attendance->id}/session/{$this->form->session_id}");
+        }
     } catch (\Throwable $th) {
         Log::info($th->getMessage());
         $this->dispatch('notify', 'error', 'Terjadi Kesalahan');
@@ -100,7 +103,7 @@ $submit = function (){
                                     <input value="Alpa" name="all_status" id="date" type="radio" class="radio">
                                 </td>
                                 <td class="text-center" >
-                                    <input value="Tanpa Keterangan" name="all_status" id="date" type="radio" class="radio">
+                                    <input value="Terlambat" name="all_status" id="date" type="radio" class="radio">
                                 </td>
                                 <td></td>
                             </tr>
@@ -153,7 +156,7 @@ $submit = function (){
         <x-alert
             show="$store.alert.cancel"
             onCancel="$store.alert.cancel = false"
-            onOk="$wire.submit()"
+            onOk="$wire.submit(true)"
             type="warning"
             title="Batal"
             message="Batalkan pembuatan aktivitas ?"
@@ -183,11 +186,6 @@ $submit = function (){
             }, 2000);
         })
 
-        window.addEventListener("beforeunload", function(event) {
-            event.preventDefault()
-            event.returnValue = '';
-        }, { capture: true });
-        
     </script>
     @endscript
     

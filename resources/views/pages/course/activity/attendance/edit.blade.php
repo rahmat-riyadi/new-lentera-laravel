@@ -24,7 +24,7 @@ $submit = function (){
     $this->form->validate();
     try {
         $this->form->update();
-        $this->redirect('/course/'.$this->course->shortname, navigate: true);
+        $this->redirect('/course/'.$this->course->shortname);
     } catch (\Throwable $th) {
         Log::info($th->getMessage());
         throw $th;
@@ -38,9 +38,9 @@ $submit = function (){
 
         <div class="bg-white course-page-header px-8 py-8 font-main flex flex-col" >
             <x-back-button @click="$store.alert.cancel = true" path="javascript:;" />
-            <p class="text-sm text-[#656A7B] font-[400] flex flex-wrap leading-7 items-center my-5" >Matakuliah <span class="mx-2 text-[9px]" > >> </span> {{ $course->fullname }} <span class="mx-2 text-[9px]" > >> </span>  <span class="text-[#121212]" >Ubah Kehadiran - {{ $section->name }}</span></p>
+            <p class="text-sm text-[#656A7B] font-[400] flex flex-wrap leading-7 items-center my-5" >Matakuliah <span class="mx-2 text-[9px]" > >> </span> {{ $course->fullname }} <span class="mx-2 text-[9px]" > >> </span>  <span class="text-[#121212]" >Ubah Kehadiran - {{ $section->name ?? "Topic $section->section" }}</span></p>
             <div class="flex items-center justify-between" >
-                <h1 class="text-[#121212] text-xl font-semibold" >Ubah Kehadiran - {{ $section->name }}</h1>
+                <h1 class="text-[#121212] text-xl font-semibold" >Ubah Kehadiran - {{ $section->name ?? "Topic $section->section" }}</h1>
                 <a href="/teacher/attendance/{{ $form->attendance->id }}/session" class="btn-primary">
                     Pengaturan Sesi
                 </a>
@@ -202,11 +202,6 @@ $submit = function (){
                 })
             }
         });
-
-        window.addEventListener("beforeunload", function(event) {
-            event.preventDefault()
-            event.returnValue = '';
-        }, { capture: true });
 
     </script>
     @endscript

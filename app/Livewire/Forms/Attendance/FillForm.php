@@ -2,6 +2,7 @@
 
 namespace App\Livewire\Forms\Attendance;
 
+use App\Helpers\GlobalHelper;
 use App\Models\Attendance;
 use App\Models\Context;
 use App\Models\CourseModule;
@@ -136,37 +137,43 @@ class FillForm extends Form
         try {
             
             foreach($this->students as $s){
-                
-                switch ($s['status']) {
-                    case 'Hadir':
-                        $status = $this->statuses->firstWhere('name', 'Present'); 
-                        break;
-                    case 'Izin':
-                        $status = $this->statuses->firstWhere('name', 'Excused'); 
-                        break;
-                    case 'Sakit':
-                        $status = $this->statuses->firstWhere('name', 'Sick'); 
-                        break;
-                    case 'Alpa':
-                        $status = $this->statuses->firstWhere('name', 'Absent'); 
-                        break;
+
+                if(!is_null($s['status'])){
+                    switch ($s['status']) {
+                        case 'Hadir':
+                            $status = $this->statuses->firstWhere('description', 'Present'); 
+                            break;
+                        case 'Izin':
+                            $status = $this->statuses->firstWhere('description', 'Excused'); 
+                            break;
+                        case 'Sakit':
+                            $status = $this->statuses->firstWhere('description', 'Sick'); 
+                            break;
+                        case 'Alpa':
+                            $status = $this->statuses->firstWhere('description', 'Absent'); 
+                            break;
+                        case 'Terlambat':
+                            $status = $this->statuses->firstWhere('description', 'Late'); 
+                            break;
+                    }
+
+                    DB::connection('moodle_mysql')
+                    ->table('mdl_attendance_log')
+                    ->where('sessionid', $this->session_id)
+                    ->updateOrInsert(
+                        [
+                            'studentid' => $s['id'],
+                        ],
+                        [
+                            'statusid' => $status->id,
+                            'statusset' => $this->statuses->pluck('id')->join(','),
+                            'timetaken' => time(),
+                            'takenby' => auth()->user()->id,
+                            'sessionid' => $this->session_id
+                        ]
+                    );
                 }
-
-                DB::connection('moodle_mysql')
-                ->table('mdl_attendance_log')
-                ->where('sessionid', $this->session_id)
-                ->updateOrInsert(
-                    [
-                        'studentid' => $s['id'],
-                    ],
-                    [
-                        'statusid' => $status['id'],
-                        'statusset' => $this->statuses->pluck(),
-                    ]
-                );
-
-
-                Log::info($this->students);
+                
             }
 
         } catch (\Throwable $th) {
