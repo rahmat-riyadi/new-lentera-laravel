@@ -11,6 +11,7 @@ use App\Models\{
     Context,
     Role,
     AssignmentFile,
+    ResourceFile,
 };
 
 state([
@@ -21,11 +22,13 @@ state([
     'students',
     'submitted_count',
     'need_grading_count',
-    'student_submission'
+    'student_submission',
+    'student_submission_files',
+    'type'
 ]);
 
 mount(function (Course $course,CourseSection $section, Assignment $assignment){
-    $ctx = Context::where('contextlevel', 50)->where('instanceid', 4)->first();
+    $ctx = Context::where('contextlevel', 50)->where('instanceid', $course->id)->first();
     $data = DB::connection('moodle_mysql')->table('mdl_role_assignments as ra')
     ->join('mdl_role as r', 'r.id', '=', 'ra.roleid')
     ->where('ra.contextid', $ctx->id)
@@ -37,6 +40,28 @@ mount(function (Course $course,CourseSection $section, Assignment $assignment){
     $this->role = $data->role;
     $this->course = $course;
     $this->section = $section;
+
+    $online_text_plugin = $assignment->configs()
+        ->where('subtype', 'assignsubmission')
+        ->where('plugin', 'onlinetext')
+        ->where('name', 'enabled')
+        ->where('value', 1)
+        ->first();
+
+    $file_plugin = $assignment->configs()
+        ->where('subtype', 'assignsubmission')
+        ->where('plugin', 'file')
+        ->where('name', 'enabled')
+        ->where('value', 1)
+        ->first();
+
+    if($online_text_plugin){
+        $this->type = 'onlinetext';
+    } 
+
+    if($file_plugin){
+        $this->type = 'file';
+    }
 
     if($this->role != 'student'){
 
@@ -70,9 +95,39 @@ mount(function (Course $course,CourseSection $section, Assignment $assignment){
         $this->need_grading_count = $this->students->filter(fn($e) => is_null($e->grade) && !is_null($e->created_at))->count();
         
     } else {
-        $this->student_submission = AssignmentSubmission::where('student_id', auth()->user()->id)
-        ->where('assignment_id', $assignment->id)
+
+        $this->student_submission = AssignmentSubmission::where('userid', auth()->user()->id)
+        ->where('assignment', $assignment->id)
         ->first();
+
+        if($this->student_submission){
+            if($this->type == 'file'){
+                $submission_files = ResourceFile::where('userid', auth()->user()->id)
+                ->where('component', 'assignsubmission_file')
+                ->where('filearea', 'submission_files')
+                ->where('itemid', $this->student_submission->id)
+                ->where('filename', '!=', '.')
+                ->get();
+    
+                $this->student_submission_files = $submission_files->map(function($e){
+                    $filedir = substr($e->contenthash, 0, 4);
+                    $formatted_dir = substr_replace($filedir, '/', 2, 0);
+    
+                    $ext = explode('.',$e->filename);
+                    $ext = $ext[count($ext)-1];
+    
+                    $e->name = $e->filename;
+                    $e->file = "/preview/file/$e->id/$e->filename";
+                    $e->size = $e->filesize;
+                    $e->itemid = $e->itemid;
+                    return $e;
+                });
+    
+            }
+        }
+
+
+
     }
 
     if(session('success')){
@@ -135,7 +190,7 @@ $download = function ($id){
                     </table>
                 </div>
             </div>
-            <div class="bg-white p-5 mt-6 rounded-xl">
+            {{-- <div class="bg-white p-5 mt-6 rounded-xl">
                 <table class=" w-full" >
                     <thead class="table-head" >
                         <tr>
@@ -166,7 +221,6 @@ $download = function ($id){
                                 @endif
                             </td>
                             <td>
-                                {{-- <p class="chip {{ is_null($student->is_late) ? 'empty' : (($student->is_late) ? 'late' : 'attend' ) }} text-center px-3 text-xs w-fit font-medium rounded-xl">{{ is_null($student->is_late) ? 'Belum' : (!$student->is_late ? 'Telah' : 'Terlambat')}} Dikumpulkan</p> --}}
                                 @if (is_null($student->created_at))
                                     <p class="chip empty text-center px-3 text-xs w-fit font-medium rounded-xl">Belum Dikumpulkan</p>
                                 @else
@@ -196,12 +250,12 @@ $download = function ($id){
                         @endforeach
                     </tbody>
                 </table>
-            </div>    
+            </div>     --}}
             @else
             <div class="bg-white p-5 rounded-xl">
                 <h3 class="font-semibold text-lg mb-2" >{{ $assignment->name }}</h3>
                 <p class="text-grey-700 text-sm" > {!! $assignment->description !!}</p>
-                @if (count($assignment->files) > 0)
+                {{-- @if (count($assignment->files) > 0)
                 <div class="flex flex-col mt-4" >
                     @foreach ($assignment->files ?? [] as $i => $item)
                     <div  class="flex items-center px-4 py-2 bg-grey-100 rounded-lg mb-3" >
@@ -218,26 +272,21 @@ $download = function ($id){
                     </div>
                     @endforeach
                 </div>
-                @endif
+                @endif --}}
                 <table class="w-full font-normal md:font-medium mt-4" >
                     <tr>
                         <td style="height: 37px;" class="text-grey-500 text-sm  md:w-[210px]" >Batas Waktu</td>
-                        <td class="text-[#121212] text-sm" > <span class="mr-1" >:</span> {{ Carbon\Carbon::parse($assignment->due_date)->translatedFormat('d F Y') }}</td>
+                        <td class="text-[#121212] text-sm" > <span class="mr-1" >:</span> {{ Carbon\Carbon::parse($assignment->duedate)->translatedFormat('d F Y') }}</td>
                     </tr>
                     <tr>
-                        @php
-                            $end_time = \Carbon\Carbon::parse($assignment->due_date);
-                            $now = \Carbon\Carbon::now();
-                            // $diff = $end_time->diffInSeconds($start_time);
-                        @endphp
                         <td style="height: 37px;" class="text-grey-500 text-sm  md:w-[210px]" >Waktu Tersisa</td>
-                        <td class="text-[#121212] text-sm" > <span class="mr-1" >:</span> {{ Carbon\Carbon::parse($assignment->due_date)->diff()->format('%H Jam %i Menit') }}</td>
+                        <td class="text-[#121212] text-sm" > <span class="mr-1" >:</span> {{ Carbon\Carbon::parse($assignment->duedate)->diff()->format('%H Jam %i Menit') }}</td>
                     </tr>
                     <tr>
                         <td style="height: 37px;" class="text-grey-500 text-sm  md:w-[210px]" >Status</td>
                         <td class="text-[#121212] text-sm" >
                             <span class="mr-1" >:</span>
-                            @if (!empty($student_submission))
+                            @if (!empty($student_submission) && $student_submission->status == 'submitted')
                             <span class="chip px-3 py-1 text-xs rounded-md attend" >Dikumpulkan</span>
                             @else
                             <span class="chip empty" >-</span>
@@ -257,27 +306,24 @@ $download = function ($id){
                     </tr>
                 </table>
                 <div class="h-4" ></div>
-                @if (empty($student_submission))
+                @if (empty($student_submission) || $student_submission->status == 'new')
                 <a wire:navigate.hover href="/student/assignment/{{ $assignment->id }}/submit" class="btn btn-outlined text-center inline-block w-full md:w-fit">
-                    {{ !empty($student_submission) ? 'Ubah' : 'Ajukan' }} Penugasan
+                    {{ !empty($student_submission) && $student_submission->status == 'submitted' ? 'Ubah' : 'Ajukan' }} Penugasan
                 </a>
                 @endif
             </div>
-            @if (!empty($student_submission))
-                @php
-                    $type = $assignment->configs()->where('name', 'type')->first()->value == 'onlinetext' ? 'Text Daring' : 'File';
-                @endphp
+            @if (!empty($student_submission) && $student_submission->status == 'submitted')
                 <div class="bg-white p-5 rounded-xl mt-4" >
                     <h3 class="font-semibold mb-2" >
                         {{ $type  }}
                     </h3>
-                    @if ($type == 'File')
+                    @if ($type == 'file')
                     <div class="flex flex-col mt-4" >
-                        @foreach ($student_submission->files as $file)
+                        @foreach ($student_submission_files as $file)
                         <div  class="flex items-center px-4 py-2 rounded-lg mb-3 bg-grey-100" >
                             <img class="w-7 mr-4" src="{{ asset('assets/icons/berkas_lg.svg') }}" >
                             <p class="font-semibold text-sm mb-[2px]" >
-                                <a target="_blank" class="hover:underline" href="{{ url('storage/'.$file->path) }}" >{{ $file->name }}</a>
+                                <a target="_blank" class="hover:underline" href="{{ $file->file }}" >{{ $file->name }}</a>
                             </p>
                         </div>
                         @endforeach

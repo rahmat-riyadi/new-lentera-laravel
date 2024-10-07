@@ -20,6 +20,9 @@ mount(function (Course $course,CourseSection $section, Resource $resource, $cm){
     $this->form->setModel($course);
     $this->form->setSection($section->section);
     $this->form->setInstance($resource);
+
+    Log::info($this->form->fileResource);
+
 });
 
 $submit = function (){

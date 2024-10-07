@@ -48,7 +48,7 @@ class AssignmentController extends Controller
 
     public function createSubmission(Assignment $assignment){
         $module = Module::where('name', 'assign')->first();
-        $course = Course::find($assignment->course_id);
+        $course = Course::find($assignment->course);
         $courseModule = CourseModule::
         where('instance', $assignment->id)
         ->where('course', $course->id)
