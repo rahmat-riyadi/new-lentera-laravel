@@ -149,63 +149,63 @@ $set_grading_data = function ($type = 'all'){
         $selectedAttendance = Attendance::where('course', $this->course->id)->orderBy('timemodified')->get();
     }
     
-    foreach($gradesStudent as $student){
+    // foreach($gradesStudent as $student){
 
-        if($type == 'all' || $type == 'attendance'){
-            $student->attendance_grades = new stdClass();
-            foreach($selectedAttendance->pluck('id') as $i => $attId){
-                $attendance = StudentAttendance::where('attendance_id', $attId)
-                ->where('student_id', $student->id)
-                ->select(
-                    'id',
-                    'status'
-                )
-                ->first();
+    //     if($type == 'all' || $type == 'attendance'){
+    //         $student->attendance_grades = new stdClass();
+    //         foreach($selectedAttendance->pluck('id') as $i => $attId){
+    //             $attendance = StudentAttendance::where('attendance_id', $attId)
+    //             ->where('student_id', $student->id)
+    //             ->select(
+    //                 'id',
+    //                 'status'
+    //             )
+    //             ->first();
     
-                $student->attendance_grades->{"attendance_$i"} = new stdClass();
-                $student->attendance_grades->{"attendance_$i"}->title = $selectedAttendance->first(fn($e) => $e->id == $attId)->name ?? null;
-                $student->attendance_grades->{"attendance_$i"}->grade = $attendance->status ?? null;
+    //             $student->attendance_grades->{"attendance_$i"} = new stdClass();
+    //             $student->attendance_grades->{"attendance_$i"}->title = $selectedAttendance->first(fn($e) => $e->id == $attId)->name ?? null;
+    //             $student->attendance_grades->{"attendance_$i"}->grade = $attendance->status ?? null;
     
-            }
-        }
+    //         }
+    //     }
 
-        if($type == 'all' || $type == 'quiz'){
-            $student->quiz_grades = new stdClass();
-            foreach($selectedQuiz->pluck('id') as $i => $qid){
-                $quiz = StudentQuiz::where('quiz_id', $qid)
-                ->where('student_id', $student->id)
-                ->leftJoin('student_quiz_answers as sqa', 'sqa.student_quiz_id', '=', 'student_quizzes.id')
-                ->select(
-                    'student_quizzes.quiz_id',
-                    'sqa.grade'
-                )
-                ->first();
+    //     if($type == 'all' || $type == 'quiz'){
+    //         $student->quiz_grades = new stdClass();
+    //         foreach($selectedQuiz->pluck('id') as $i => $qid){
+    //             $quiz = StudentQuiz::where('quiz_id', $qid)
+    //             ->where('student_id', $student->id)
+    //             ->leftJoin('student_quiz_answers as sqa', 'sqa.student_quiz_id', '=', 'student_quizzes.id')
+    //             ->select(
+    //                 'student_quizzes.quiz_id',
+    //                 'sqa.grade'
+    //             )
+    //             ->first();
     
-                $student->quiz_grades->{"quiz_$i"} = new stdClass();
-                $student->quiz_grades->{"quiz_$i"}->title = $selectedQuiz->first(fn($e) => $e->id == $qid)->name ?? null;
-                $student->quiz_grades->{"quiz_$i"}->grade = $quiz->grade ?? 0.00;
+    //             $student->quiz_grades->{"quiz_$i"} = new stdClass();
+    //             $student->quiz_grades->{"quiz_$i"}->title = $selectedQuiz->first(fn($e) => $e->id == $qid)->name ?? null;
+    //             $student->quiz_grades->{"quiz_$i"}->grade = $quiz->grade ?? 0.00;
     
-            }
-        }
+    //         }
+    //     }
 
-        if($type == 'all' || $type == 'assignment'){
-            $student->assignment_grades = new stdClass();
-            foreach($selectedAssignment->pluck('id') as $i => $aid){
+    //     if($type == 'all' || $type == 'assignment'){
+    //         $student->assignment_grades = new stdClass();
+    //         foreach($selectedAssignment->pluck('id') as $i => $aid){
     
-                $assignment = AssignmentSubmission::where('assignment_id', $aid)
-                ->where('student_id', $student->id)
-                ->select(
-                    'grade'
-                )
-                ->first();
+    //             $assignment = AssignmentSubmission::where('assignment_id', $aid)
+    //             ->where('student_id', $student->id)
+    //             ->select(
+    //                 'grade'
+    //             )
+    //             ->first();
     
-                $student->assignment_grades->{"assignment_$i"} = new stdClass();
-                $student->assignment_grades->{"assignment_$i"}->title = $selectedAssignment->first(fn($e) => $e->id == $aid)->name ?? null;
-                $student->assignment_grades->{"assignment_$i"}->grade = $assignment->grade ?? 0.00;
+    //             $student->assignment_grades->{"assignment_$i"} = new stdClass();
+    //             $student->assignment_grades->{"assignment_$i"}->title = $selectedAssignment->first(fn($e) => $e->id == $aid)->name ?? null;
+    //             $student->assignment_grades->{"assignment_$i"}->grade = $assignment->grade ?? 0.00;
     
-            }
-        }
-    }
+    //         }
+    //     }
+    // }
 
     $metaData = [
         'quiz' => ($type == 'all' || $type == 'quiz') ? $selectedQuiz->pluck('name') : [],

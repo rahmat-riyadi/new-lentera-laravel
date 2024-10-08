@@ -35,6 +35,8 @@ class CourseHelper {
             'depth' => substr_count($context->path, '/') + 1
         ]);
 
+        return $newContext;
+
     }
 
     static public function addCourseModuleToSection($course_id, $cmid, $section_num){

@@ -76,23 +76,49 @@ mount(function (Course $course,CourseSection $section, Assignment $assignment){
 
         $this->students = User::query()
         ->whereIn('mdl_user.id', $studentIds)
-        ->leftJoin('lentera_v2.assignment_submissions as s', function($q) use ($assignment) {
-            $q->on('s.student_id', '=', 'mdl_user.id')
-            ->where('s.assignment_id', $assignment->id);
+        ->leftJoin('mdl_assign_submission as s', function($q) use ($assignment) {
+            $q->on('s.userid', '=', 'mdl_user.id')
+            ->where('s.assignment', $assignment->id);
         })
         ->select(
             'mdl_user.id',
             's.id as assignment_submission_id',
             DB::raw("CONCAT(mdl_user.firstname,' ',mdl_user.lastname) as fullname"),
             'mdl_user.username as nim',
-            's.grade',
-            's.grading_time',
-            's.created_at'
+            's.timecreated',
+            's.timemodified',
+            's.status',
         )
         ->get();
 
-        $this->submitted_count = $this->students->filter(fn($e) => !is_null($e->created_at))->count();
-        $this->need_grading_count = $this->students->filter(fn($e) => is_null($e->grade) && !is_null($e->created_at))->count();
+        
+        $this->submitted_count = DB::connection('moodle_mysql')
+        ->table('mdl_assign_submission as s')
+        ->where('s.latest', 1)
+        ->where('s.assignment', $assignment->id)
+        ->whereNotNull('s.timemodified')
+        ->where('s.status', 'submitted')
+        ->whereIn('s.userid', $studentIds)
+        ->count('s.userid');
+
+        $this->need_grading_count = DB::connection('moodle_mysql')
+        ->table('mdl_assign_submission as s')
+        ->leftJoin('mdl_assign_grades as g', function($q){
+            $q->on('s.assignment', '=', 'g.assignment')
+            ->on('s.userid', '=', 'g.userid')
+            ->on('s.attemptnumber', '=', 'g.attemptnumber');
+        })
+        ->whereIn('s.userid', $studentIds)
+        ->where('s.latest', 1)
+        ->where('s.assignment', $assignment->id)
+        ->where('s.status', 'submitted')
+        ->whereNotNull('s.timemodified')
+        ->where(function ($query) {
+            $query->where('s.timemodified', '>=', DB::raw('g.timemodified'))
+                ->orWhereNull('g.timemodified')
+                ->orWhereNull('g.grade');
+        })
+        ->count('s.userid');
         
     } else {
 
@@ -125,8 +151,6 @@ mount(function (Course $course,CourseSection $section, Assignment $assignment){
     
             }
         }
-
-
 
     }
 
@@ -163,15 +187,15 @@ $download = function ($id){
                     <table class="w-full font-medium" >
                         <tr>
                             <td style="width: 210px; height: 37px;" class="text-grey-500 text-sm" >Tenggat Waktu</td>
-                            <td class="text-[#121212] text-sm" >: {{ Carbon\Carbon::parse($assignment->due_date)->translatedFormat('d F Y, H:i') }}</td>
+                            <td class="text-[#121212] text-sm" >: {{ Carbon\Carbon::parse($assignment->duedate)->translatedFormat('d F Y, H:i') }}</td>
                         </tr>
                         <tr>
                             <td style="width: 210px; height: 37px;" class="text-grey-500 text-sm" >Waktu Tersisa</td>
-                            <td class="text-[#121212] text-sm" >: {{ Carbon\Carbon::parse($assignment->due_date)->diffForHumans(['parts' => 2]) }}</td>
+                            <td class="text-[#121212] text-sm" >: {{ Carbon\Carbon::parse($assignment->duedate)->diffForHumans(['parts' => 2]) }}</td>
                         </tr>
                         <tr>
                             <td style="width: 210px; height: 37px;" class="text-grey-500 text-sm" >Jenis Pengiriman</td>
-                            <td class="text-[#121212] text-sm" >: {{ $assignment->configs()->where('name', 'type')->first()->value == 'onlinetext' ? 'Text Daring' : 'File'  }}</td>
+                            <td class="text-[#121212] text-sm" >: {{ $type == 'file' ? 'Berkas' : 'Text Daring'  }}</td>
                         </tr>
                     </table>
                     <table class="w-full font-medium" >
@@ -190,7 +214,7 @@ $download = function ($id){
                     </table>
                 </div>
             </div>
-            {{-- <div class="bg-white p-5 mt-6 rounded-xl">
+            <div class="bg-white p-5 mt-6 rounded-xl">
                 <table class=" w-full" >
                     <thead class="table-head" >
                         <tr>
@@ -214,19 +238,19 @@ $download = function ($id){
                                 </div>
                             </td>
                             <td >
-                                @if (!empty($student->created_at))
-                                {{ \Carbon\Carbon::parse($student->created_at)->translatedFormat('d F Y, H:i') }}
+                                @if (!empty($student->timemodified))
+                                {{ \Carbon\Carbon::parse($student->timemodified)->translatedFormat('d F Y, H:i') }}
                                 @else
                                     -
                                 @endif
                             </td>
                             <td>
-                                @if (is_null($student->created_at))
+                                @if (is_null($student->timemodified))
                                     <p class="chip empty text-center px-3 text-xs w-fit font-medium rounded-xl">Belum Dikumpulkan</p>
                                 @else
                                     @php
-                                        $sub_time = \Carbon\Carbon::parse($student->created_at);
-                                        $assign_time = \Carbon\Carbon::parse($assignment->due_date);
+                                        $sub_time = \Carbon\Carbon::parse($student->timemodified);
+                                        $assign_time = \Carbon\Carbon::parse($assignment->duedate);
                                     @endphp
                                     @if ($sub_time->gt($assign_time))
                                     <p class="chip late text-center px-3 text-xs w-fit font-medium rounded-xl">Terlambat Dikumpulkan</p>
@@ -250,7 +274,7 @@ $download = function ($id){
                         @endforeach
                     </tbody>
                 </table>
-            </div>     --}}
+            </div>    
             @else
             <div class="bg-white p-5 rounded-xl">
                 <h3 class="font-semibold text-lg mb-2" >{{ $assignment->name }}</h3>
@@ -280,7 +304,31 @@ $download = function ($id){
                     </tr>
                     <tr>
                         <td style="height: 37px;" class="text-grey-500 text-sm  md:w-[210px]" >Waktu Tersisa</td>
-                        <td class="text-[#121212] text-sm" > <span class="mr-1" >:</span> {{ Carbon\Carbon::parse($assignment->duedate)->diff()->format('%H Jam %i Menit') }}</td>
+                        <td class="text-[#121212] text-sm" > 
+                            <span class="mr-1" >:</span>
+                            @php
+                                $is_late = false;
+
+                                if($student_submission) {
+                                    if(Carbon\Carbon::parse($assignment->duedate)->lessThan(Carbon\Carbon::parse($student_submission->timemodified))) {
+                                        $is_late = true;
+                                    }
+                                }
+
+
+                            @endphp
+                            @if (!$student_submission)
+                                {{ Carbon\Carbon::parse($assignment->duedate)->diff()->format('%H Jam %i Menit') }}
+                            @else
+                                @if($is_late)
+                                <span class="text-error" >
+                                    Tugas Dikumpulkan {{ Carbon\Carbon::parse($assignment->duedate)->diffInHours(Carbon\Carbon::parse($student_submission->timemodified)) }} Lebih Lambat
+                                </span>
+                                @else
+                                {{ Carbon\Carbon::parse($assignment->timemodified) }}
+                                @endif
+                            @endif  
+                        </td>
                     </tr>
                     <tr>
                         <td style="height: 37px;" class="text-grey-500 text-sm  md:w-[210px]" >Status</td>

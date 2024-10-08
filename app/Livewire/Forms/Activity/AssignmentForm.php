@@ -6,7 +6,12 @@ use App\Helpers\CourseHelper;
 use App\Helpers\GlobalHelper;
 use App\Models\Assignment;
 use App\Models\AssignmentConfig;
+use App\Models\Context;
 use App\Models\Course;
+use App\Models\GradeCategory;
+use App\Models\GradeGrades;
+use App\Models\GradeItem;
+use App\Models\GradingArea;
 use App\Models\Module;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -224,20 +229,52 @@ class AssignmentForm extends Form
                 ]);
             }
 
-            // if($this->files ?? []){
-            //     foreach ($this->files ?? [] as $file) {
-            //         $path = $file->store('assignment-file');
-            //         $instance->files()->create([
-            //             'path' => $path,
-            //             'name' => $file->getClientOriginalName(),
-            //             'size' => $file->getSize(),
-            //         ]);
-            //     }
-            // }
+            $GradeCategory = GradeCategory::firstWhere("courseid", $this->course->id);
+
+            $gradeItem = GradeItem::create([
+                'courseid' => $this->course->id,
+                'categoryid' => $GradeCategory->id,
+                'name' => $this->assignment->name,
+                'itemtype' => 'mod',
+                'itemmodule' => 'assign',
+                'iteminstance' => $this->assignment->id,
+                'timecreated' => time(),
+                'timemodified' => time(),
+            ]);
+
+            $context = Context::where('instanceid', $this->course->id)
+            ->where('contextlevel', 50)
+            ->first();
+
+            $participantsData = DB::connection('moodle_mysql')
+            ->table('mdl_role_assignments as ra')
+            ->where('contextid', $context->id)
+            ->join('mdl_user as u', 'u.id', '=', 'ra.userid')
+            ->join('mdl_role as r', 'r.id', '=', 'ra.roleid')
+            ->where('r.shortname', '!=', 'editingteacher')
+            ->select(
+                'u.id',
+            )->get();
+
+            $grade_grades_data = $participantsData->map(function ($participant) use ($gradeItem) {
+                return [
+                    'userid' => $participant->id,
+                    'itemid' => $gradeItem->id,
+                ];
+            });
+
+            GradeGrades::insert($grade_grades_data);
 
             $cm = CourseHelper::addCourseModule($this->course->id, $this->module->id, $instance->id);
-            CourseHelper::addContext($cm->id, $this->course->id);
+            $ctx = CourseHelper::addContext($cm->id, $this->course->id);
             CourseHelper::addCourseModuleToSection($this->course->id, $cm->id, $this->section_num);
+
+            GradingArea::create([
+                'contextid' => $ctx->id,
+                'component' => 'mod_assign',
+                'areaname' => 'submissions',
+            ]);
+
             DB::commit();
         } catch (\Throwable $th) {
             DB::rollBack();
