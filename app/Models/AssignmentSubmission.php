@@ -22,7 +22,7 @@ class AssignmentSubmission extends Model
     }
 
     public function url(){
-        return $this->hasOne(AssignmentSubmissionOnlineText::class, 'assignment_submission_id');
+        return $this->hasOne(AssignmentSubmissionOnlineText::class, 'submission');
     }
 
 }

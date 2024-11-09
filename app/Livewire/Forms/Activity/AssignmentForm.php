@@ -28,7 +28,7 @@ class AssignmentForm extends Form
     
     public Module $module;
     
-    public ?Assignment $assignment;
+    public ?Assignment $assignment = null;
 
     public ?Course $course;
 
@@ -144,6 +144,7 @@ class AssignmentForm extends Form
         if((boolean)$file_plugin['enabled']){
             $this->submission_type = 'file';    
             $this->max_size = $file_plugin['maxsubmissionsizebytes'];    
+            $this->file_types = $file_plugin['filetypeslist'];
         }
 
     }
@@ -163,6 +164,8 @@ class AssignmentForm extends Form
                 'allowsubmissionsfromdate' => $start_date->unix(),
                 'duedate' => $due_date->unix(),
                 'grade' => 100,
+                'introformat' => 1,
+                'alwaysshowdescription' => 1,
             ]);
 
             if($this->submission_type == 'onlinetext'){
@@ -212,7 +215,7 @@ class AssignmentForm extends Form
                         'plugin' => 'file',
                         'subtype' => 'assignsubmission',
                         'name' => 'maxfilesubmissions',
-                        'value' => 1,
+                        'value' => 20,
                     ],
                     [
                         'plugin' => 'file',
@@ -224,7 +227,7 @@ class AssignmentForm extends Form
                         'plugin' => 'file',
                         'subtype' => 'assignsubmission',
                         'name' => 'filetypeslist',
-                        'value' => '',
+                        'value' => $this->file_types ?? '*',
                     ],
                 ]);
             }
@@ -234,10 +237,11 @@ class AssignmentForm extends Form
             $gradeItem = GradeItem::create([
                 'courseid' => $this->course->id,
                 'categoryid' => $GradeCategory->id,
-                'name' => $this->assignment->name,
+                'itemname' => $this->name,
                 'itemtype' => 'mod',
+                'itemnumber' => 0,
                 'itemmodule' => 'assign',
-                'iteminstance' => $this->assignment->id,
+                'iteminstance' => $instance->id,
                 'timecreated' => time(),
                 'timemodified' => time(),
             ]);
@@ -263,7 +267,7 @@ class AssignmentForm extends Form
                 ];
             });
 
-            GradeGrades::insert($grade_grades_data);
+            GradeGrades::insert($grade_grades_data->toArray());
 
             $cm = CourseHelper::addCourseModule($this->course->id, $this->module->id, $instance->id);
             $ctx = CourseHelper::addContext($cm->id, $this->course->id);

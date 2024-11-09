@@ -38,8 +38,8 @@ $submit = function (){
         $this->form->store();
         $this->redirect('/course/'.$this->course->shortname, navigate: true);
     } catch (\Throwable $th) {
-        // throw $th;
-        Log::info($th->getMessage());
+        throw $th;
+        // Log::info($th->getMessage());
     }
 };
 

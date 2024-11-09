@@ -75,10 +75,11 @@ $submit_url = function (){
 $submit = function (){
     if($this->form->submission_type == 'file'){
         $this->form->validate([
-            'files' => "required|array|size:".$this->form->submission_file_number
+            // 'files' => "required|array|size:".$this->form->submission_file_number
+            'files' => "required"
         ],[
             'files.required' => 'File tidak boleh kosong',
-            'files.size' => 'Upload sebanyak '.$this->form->submission_file_number. ' file'
+            // 'files.size' => 'Upload sebanyak '.$this->form->submission_file_number. ' file'
         ]);
     }
 
@@ -87,8 +88,10 @@ $submit = function (){
         session()->flash('success', 'Tugas berhasil dikumpul');
         $this->redirect("/course/{$this->course->shortname}/activity/assignment/detail/{$this->courseModule->id}", navigate: true);
     } catch (\Throwable $th) {
-        Log::info($th->getMessage());
-        $this->dispatch('notify', 'error', $th->getMessage());
+        throw $th;
+        
+        // Log::info($th->getMessage());
+        // $this->dispatch('notify', 'error', $th->getMessage());
     }
 };
 
@@ -101,12 +104,7 @@ on([
         ->get()
         ->toArray();
 
-        Log::info($file);
-        Log::info($files);
-
         array_push($this->form->files, $files);
-
-
     }
 ])
 

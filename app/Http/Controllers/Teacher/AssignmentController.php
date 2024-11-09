@@ -34,7 +34,7 @@ class AssignmentController extends Controller
 
     public function grade(Assignment $assignment, AssignmentSubmission $assignmentSubmission){
         $module = Module::where('name', 'assign')->first();
-        $course = Course::find($assignment->course_id);
+        $course = Course::find($assignment->course);
         $courseModule = CourseModule::
         where('instance', $assignment->id)
         ->where('course', $course->id)
@@ -42,8 +42,8 @@ class AssignmentController extends Controller
         ->orderBy('added', 'DESC')
         ->first();
         $section = CourseSection::find($courseModule->section);
-        $student = User::find($assignmentSubmission->student_id);
-        return view('pages.course.activity.assignment.grading', compact('assignment', 'course', 'section', 'courseModule', 'student', 'assignmentSubmission'));
+        $student = User::find($assignmentSubmission->userid);
+        return view('pages.course.activity.assignment.grading', compact('assignment', 'course', 'section', 'courseModule', 'student', 'assignmentSubmission', 'courseModule'));
     }
 
     public function createSubmission(Assignment $assignment){

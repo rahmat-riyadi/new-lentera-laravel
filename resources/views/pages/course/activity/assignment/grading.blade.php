@@ -2,7 +2,11 @@
 
 use function Livewire\Volt\{state, mount, on};
 use App\Models\{
+    GradeItem,
+    AssignGrade,
     Course,
+    GradeGrades,
+    CourseModule,
     CourseSection,
     Assignment,
     AssignmentSubmission,
@@ -23,38 +27,111 @@ state([
     'grade',
 ]);
 
-mount(function(Course $course, CourseSection $section, Assignment $assignment, User $student, AssignmentSubmission $assignmentSubmission){
+mount(function(Course $course, CourseSection $section, Assignment $assignment, User $student, AssignmentSubmission $assignmentSubmission, CourseModule $courseModule){
+    $this->assignment = $assignment;
     $this->course = $course;
     $this->section = $section;
     $this->assignmentSubmission = $assignmentSubmission;
-    $this->grade = str_replace('.',',',$assignmentSubmission->grade);
     $this->student = $student;
-    $this->type = $assignment->configs()->where('name', 'type')->first()->value;
-    if($this->type == 'file'){
-        $this->files = $assignmentSubmission->files;
+
+    $online_text_plugin = $assignment->configs()
+        ->where('subtype', 'assignsubmission')
+        ->where('plugin', 'onlinetext')
+        ->where('name', 'enabled')
+        ->where('value', 1)
+        ->first();
+
+    $file_plugin = $assignment->configs()
+        ->where('subtype', 'assignsubmission')
+        ->where('plugin', 'file')
+        ->where('name', 'enabled')
+        ->where('value', 1)
+        ->first();
+
+    if($online_text_plugin){
+        $this->type = 'onlinetext';
+    } 
+
+    if($file_plugin){
+        $this->type = 'file';
+        $ctx_id = Context::where('contextlevel', 70)->where('instanceid', $courseModule->id)->first('id')->id;
+
+        $files = DB::connection('moodle_mysql')->table('mdl_files')
+        ->where('contextid', $ctx_id)
+        ->where('component', 'assignsubmission_file')
+        ->where('filearea', 'submission_files')
+        ->where('itemid', $assignmentSubmission->id)
+        ->where('filename', '!=', '.')
+        ->orderBy('id')
+        ->get();
+
+        $this->files = $files->map(function($e){
+            $e->id = $e->id;
+            $e->name = $e->filename;
+            $e->file = "/preview/file/$e->id/$e->filename";
+            $e->size = number_format($e->filesize / 1024 / 1024, 2) . ' MB';
+            $e->itemid = $e->itemid;
+            return $e;
+        })->toArray();   
     }
-    if($this->type == 'onlinetext'){
-        $this->url = $assignmentSubmission->url->url;
-    }
+
+    $this->grade = AssignGrade::where('assignment', $assignment->id)
+    ->where('userid', $student->id)->first('grade')->grade;    
+
+    $this->grade = number_format($this->grade, 2);
+
+    // if($this->type == 'file'){
+    //     $this->files = $assignmentSubmission->files;
+    // }
+    // if($this->type == 'onlinetext'){
+    //     $this->url = $assignmentSubmission->url->url;
+    // }
 });
 
 $submit_grade = function (){
     
     $this->validate(['grade' => 'required']);
 
+    DB::beginTransaction();
+
     try {
-        if(is_null($this->assignmentSubmission->grading_time)){
-            $this->assignmentSubmission->update([
-                'grade' => str_replace(',','.',$this->grade),
-                'grading_time' => \Carbon\Carbon::now(),
-            ]);
-        } else {
-            $this->assignmentSubmission->update([
-                'grade' => str_replace(',','.',$this->grade),
-            ]);
-        }
+        AssignGrade::updateOrCreate(
+            [
+                'assignment' => $this->assignment->id,
+                'userid' => $this->student->id,
+            ],
+            [
+                'timemodified' => time(),
+                'grade' => $this->grade,
+                'grader' => auth()->user()->id,
+                'timecreated' => time(),
+            ]
+        );
+
+        $gradeItem = GradeItem::where('iteminstance', $this->assignment->id)
+        ->where('itemmodule', 'assign')
+        ->where('courseid', $this->course->id)
+        ->first();
+
+        $gradeGrades = GradeGrades::where('itemid', $gradeItem->id)
+        ->where('userid', $this->student->id)
+        ->update([
+            'rawgrade' => $this->grade,
+            'finalgrade' => $this->grade,
+            'usermodified' => auth()->user()->id,
+            'timemodified' => time(),
+        ]);
+
+        DB::commit();
+
+        $this->grade = AssignGrade::where('assignment', $this->assignment->id)
+        ->where('userid', $this->student->id)->first('grade')->grade;    
+
+        $this->grade = number_format($this->grade, 2);
+
         $this->dispatch('notify', 'success', 'Penilaian berhasil disimpan');
     } catch (\Throwable $th) {
+        DB::rollBack();
         Log::info($th->getMessage());
         $this->dispatch('notify', 'error', $th->getMessage());
     }
@@ -102,7 +179,7 @@ $submit_grade = function (){
                 </div>
                 <div class="flex mt-4 font-medium text-sm" >
                     <p class="text-grey-500 w-[250px]" >Nilai</p>
-                    <p class="text-[#121212]" ><span class="mr-2" >:</span> <span class="text-primary" >{{  !is_null($assignmentSubmission->grade) ? str_replace('.',',',$assignmentSubmission->grade) : '0,00' }}</span> dari 100,00</p>
+                    <p class="text-[#121212]" ><span class="mr-2" >:</span> <span class="text-primary" >{{  !is_null($grade) ? str_replace('.',',',number_format($grade, 2)) : '0,00' }}</span> dari 100,00</p>
                 </div>
             </div>
 
@@ -113,7 +190,7 @@ $submit_grade = function (){
                     <p class="text-grey-800 font-semibold pb-2">File yang dikumpulkan</p>
                     <div class="space-y-4" >
                         @foreach ($files as $file)
-                        <a target="blank" href="{{ url('storage/'.$file->path) }}" class="mb-2 py-4 px-6 flex items-center border rounded-xl border-grey-300" >
+                        <a target="blank" href="{{ $file->file }}" class="mb-2 py-4 px-6 flex items-center border rounded-xl border-grey-300" >
                             <img src="{{ asset('assets/icons/pdf.svg') }}" alt="">
                             <p class="text-[#121212] ml-3 text-sm" >{{ $file->name }}</p>
                         </a>

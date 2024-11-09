@@ -187,7 +187,7 @@ $submit = function (){
                                 <option value="" >-- Pilih Jumlah Maksimal --</option>
                                 <option value="3145728" >3 mb</option>
                                 <option value="2097152" >2 mb</option>
-                                <option value="0" >1 mb</option>
+                                <option value="1048576" >1 mb</option>
                                 <option value="512000" >500 kb</option>
                                 <option value="204800" >200 kb</option>
                             </select>

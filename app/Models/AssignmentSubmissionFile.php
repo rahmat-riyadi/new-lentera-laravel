@@ -8,4 +8,5 @@ use Illuminate\Database\Eloquent\Model;
 class AssignmentSubmissionFile extends Model
 {
     use HasFactory;
+
 }

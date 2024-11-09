@@ -89,7 +89,7 @@ class ResourceForm extends Form
         });   
     }
 
-    public function insertFile($ctxid){
+    public function insertFile($ctxid, $itemid){
 
         foreach($this->uploadedFile as $files){
 
@@ -166,7 +166,7 @@ class ResourceForm extends Form
             // CourseHelper::addContext($cm->id, $this->course->id);
             CourseHelper::addCourseModuleToSection($this->course->id, $cm->id, $this->section_num);
 
-            $this->insertFile($newContext->id );
+            $this->insertFile($newContext->id, $instance->id);
             DB::commit();
             GlobalHelper::rebuildCourseCache($this->course->id);
         } catch (\Throwable $th) {
@@ -192,7 +192,7 @@ class ResourceForm extends Form
             ->where('contextlevel', 70)
             ->first('id');
 
-            $this->insertFile($file_ctx->id );
+            $this->insertFile($file_ctx->id, $this->resource->id);
          
             DB::commit();
             

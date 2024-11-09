@@ -176,11 +176,12 @@ class SubmissionForm extends Form
 
         try {
 
-            $submission = AssignmentSubmission::where('userid', auth()->user()->id)
-            ->where('assignment', $this->assignment->id)->first();
-
-            if(!$submission){
-                $submission = AssignmentSubmission::insert([
+            DB::connection('moodle_mysql')->table('mdl_assign_submission')
+            ->updateOrInsert(
+                [
+                    'assignment' => $this->assignment->id,
+                    'userid' => auth()->user()->id,
+                ],[
                     'assignment' => $this->assignment->id, 
                     'userid' => auth()->user()->id,
                     'status' => 'new',
@@ -188,11 +189,13 @@ class SubmissionForm extends Form
                     'timemodified' => time(),
                     'groupid' => 0,
                     'attemptnumber' => 0,
-                    'latest' => 0,
+                    'latest' => 1,
                     'timestarted' => null,
-                ]);
-            }
-        
+                ]
+            );
+
+            $submission = AssignmentSubmission::where('userid', auth()->user()->id)
+            ->where('assignment', $this->assignment->id)->first();
 
             DB::connection('moodle_mysql')->table('mdl_assignsubmission_file')
             ->updateOrInsert(
@@ -214,13 +217,29 @@ class SubmissionForm extends Form
             ->where('contextlevel', 70)
             ->first();
 
-            $this->insertFile($context->id, $submission->id);
+            if($this->submission_type == 'onlinetext'){
+
+                $submission->url()->updateOrCreate(
+                    [
+                        'assignment' => $this->assignment->id
+                    ],
+                    [
+                        'onlinetext' => $this->url
+                    ]
+                );
+                
+            } else {
+                $this->insertFile($context->id, $submission->id);
+            }
+
 
             $submission->update([
                 'status' => 'submitted',
             ]);
 
             DB::commit();
+
+            GlobalHelper::rebuildCourseCache($this->assignment->course);
 
 
         } catch (\Throwable $th) {
