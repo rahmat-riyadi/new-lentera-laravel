@@ -1,5 +1,10 @@
 <?php
 
+use App\Http\Controllers\API\Activity\ActivityController;
+use App\Http\Controllers\API\Activity\UrlController;
+use App\Http\Controllers\API\AuthController;
+use App\Http\Controllers\API\CourseController;
+use App\Http\Controllers\API\FileController;
 use App\Http\Controllers\API\ImageController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
@@ -15,8 +20,44 @@ use Illuminate\Support\Facades\Route;
 |
 */
 
-Route::middleware('auth:sanctum')->get('/user', function (Request $request) {
+Route::middleware('auth.bearer')->get('/user', function (Request $request) {
     return $request->user();
 });
+
+Route::post('/login', [AuthController::class, 'login']);
+
+Route::middleware('auth.bearer')->group(function () {
+
+
+    Route::group(['prefix' => 'course'], function(){
+        Route::get('/', [CourseController::class, 'getAllCourse']);    
+        
+        Route::group(['prefix' => '{shortname}'], function(){
+            Route::get('/', [CourseController::class, 'getTopic']);    
+            
+            Route::group(['prefix' => 'activity'], function(){
+                Route::post('/url', [UrlController::class, 'store']);    
+
+                
+                Route::delete('/{id}', [ActivityController::class, 'destroy']);
+            });
+            
+            Route::put('/{section}', [CourseController::class, 'changeTopic']);    
+        });
+        
+    });
+    
+    Route::group(['prefix' => 'url'], function(){
+        Route::get('/{url}', [UrlController::class, 'findById']);
+        Route::put('/{url}', [UrlController::class, 'update']);
+    });
+   
+    Route::get('/preview/file/{id}/{fileName}', [FileController::class, 'view']);
+
+
+
+});
+
+
 
 Route::post('/question/image', [ImageController::class, 'storeQuestionImage']);

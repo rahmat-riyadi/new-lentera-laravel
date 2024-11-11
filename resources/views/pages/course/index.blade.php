@@ -302,7 +302,7 @@ $get_sections = function ($course){
                         $mod_table = 'mdl_assign';
                         break;
                     case 'quiz':
-                        $mod_table = 'quizzes';
+                        $mod_table = 'mdl_quiz';
                         break;
                 }
 
