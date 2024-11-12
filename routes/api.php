@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\API\Activity\ActivityController;
+use App\Http\Controllers\API\Activity\FileController as ActivityFileController;
 use App\Http\Controllers\API\Activity\UrlController;
 use App\Http\Controllers\API\AuthController;
 use App\Http\Controllers\API\CourseController;
@@ -37,6 +38,7 @@ Route::middleware('auth.bearer')->group(function () {
             
             Route::group(['prefix' => 'activity'], function(){
                 Route::post('/url', [UrlController::class, 'store']);    
+                Route::post('/resource', [ActivityFileController::class, 'store']);    
 
                 
                 Route::delete('/{id}', [ActivityController::class, 'destroy']);
@@ -51,13 +53,20 @@ Route::middleware('auth.bearer')->group(function () {
         Route::get('/{url}', [UrlController::class, 'findById']);
         Route::put('/{url}', [UrlController::class, 'update']);
     });
+
+    Route::group(['prefix' => 'resource'], function(){
+        Route::get('/{resource}', [ActivityFileController::class, 'findById']);
+        Route::put('/{resource}', [ActivityFileController::class, 'update']);
+        Route::delete('/file/{id}', [ActivityFileController::class, 'deleteFile']);
+    });
    
     Route::get('/preview/file/{id}/{fileName}', [FileController::class, 'view']);
 
 
-
+    
 });
 
+Route::post('/file', [FileController::class, 'upload']);
 
 
 Route::post('/question/image', [ImageController::class, 'storeQuestionImage']);

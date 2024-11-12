@@ -27,4 +27,24 @@ class FileController extends Controller
         ->header('Access-Control-Allow-Origin', '*')
         ->header('Content-Type', $mimeType);
     }
+
+    public function upload(Request $request){
+
+        $request->header('Access-Control-Allow-Origin', '*');
+
+        $f = [];
+
+        foreach($request->file('file') as $file){
+            $f[] = $file->getClientOriginalName();
+        }        
+
+        return response()
+        ->json([
+            'token' => $request->header('wstoken'),
+            'message' => 'Success',
+            'data' => $f
+        ],200);
+
+    }
+
 }
