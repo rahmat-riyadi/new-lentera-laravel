@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\API\Activity\ActivityController;
+use App\Http\Controllers\API\Activity\AssignmentController;
 use App\Http\Controllers\API\Activity\FileController as ActivityFileController;
 use App\Http\Controllers\API\Activity\UrlController;
 use App\Http\Controllers\API\AuthController;
@@ -41,6 +42,11 @@ Route::middleware('auth.bearer')->group(function () {
                 Route::post('/resource', [ActivityFileController::class, 'store']);    
 
                 
+                Route::group(['prefix' => 'assignment'], function(){
+                    Route::get('/detail/{assignment}', [AssignmentController::class, 'detail']);    
+                    Route::post('/', [AssignmentController::class, 'store']);    
+                });
+                
                 Route::delete('/{id}', [ActivityController::class, 'destroy']);
             });
             
@@ -52,6 +58,11 @@ Route::middleware('auth.bearer')->group(function () {
     Route::group(['prefix' => 'url'], function(){
         Route::get('/{url}', [UrlController::class, 'findById']);
         Route::put('/{url}', [UrlController::class, 'update']);
+    });
+
+    Route::group(['prefix' => 'assignment'], function(){
+        Route::get('/{assignment}', [AssignmentController::class, 'findById']);
+        Route::put('/{assignment}', [AssignmentController::class, 'update']);
     });
 
     Route::group(['prefix' => 'resource'], function(){

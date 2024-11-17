@@ -76,7 +76,7 @@ mount(function(Course $course, CourseSection $section, Assignment $assignment, U
     }
 
     $this->grade = AssignGrade::where('assignment', $assignment->id)
-    ->where('userid', $student->id)->first('grade')->grade;    
+    ->where('userid', $student->id)->first('grade')->grade ?? 0;    
 
     $this->grade = number_format($this->grade, 2);
 

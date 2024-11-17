@@ -53,7 +53,6 @@ class UrlController extends Controller
 
     }
 
-
     public function update(Request $request, Url $url){
 
         try {
