@@ -5,10 +5,13 @@ namespace App\Http\Controllers\API\Activity;
 use App\Helpers\CourseHelper;
 use App\Helpers\GlobalHelper;
 use App\Http\Controllers\Controller;
+use App\Models\AssignGrade;
 use App\Models\Assignment;
 use App\Models\AssignmentConfig;
+use App\Models\AssignmentSubmission;
 use App\Models\Context;
 use App\Models\Course;
+use App\Models\CourseModule;
 use App\Models\GradeCategory;
 use App\Models\GradeGrades;
 use App\Models\GradeItem;
@@ -175,6 +178,7 @@ class AssignmentController extends Controller
 
                 return [
                     'id' => $e->id,
+                    'submission_id' => $e->assignment_submission_id,
                     'fullname' => $e->fullname,
                     'nim' => $e->nim,
                     'status' => $status,
@@ -362,6 +366,8 @@ class AssignmentController extends Controller
 
             DB::commit();
 
+            GlobalHelper::rebuildCourseCache($course->id);
+
             return response()->json([
                 'message' => 'Success',
                 'data' => null
@@ -489,6 +495,98 @@ class AssignmentController extends Controller
         }
 
     }
+
+    public function getDetailGrading(Request $request,AssignmentSubmission $assignmentSubmission){
+        $module = Module::where('name', 'assign')->first();
+        $assignment = Assignment::find($assignmentSubmission->assignment);
+        $user = User::find($assignmentSubmission->userid);
+
+        $courseModule = CourseModule::
+        where('instance', $assignment->id)
+        ->where('course', $assignment->course)
+        ->where('module', $module->id)
+        ->orderBy('added', 'DESC')
+        ->select('id')
+        ->first();
+
+        $online_text_plugin = $assignment->configs()
+        ->where('subtype', 'assignsubmission')
+        ->where('plugin', 'onlinetext')
+        ->where('name', 'enabled')
+        ->where('value', 1)
+        ->first();
+
+        $file_plugin = $assignment->configs()
+            ->where('subtype', 'assignsubmission')
+            ->where('plugin', 'file')
+            ->where('name', 'enabled')
+            ->where('value', 1)
+            ->first();
+
+        if($online_text_plugin){
+            $type = 'onlinetext';
+        } 
+
+        if($file_plugin){
+            $type = 'file';
+            $ctx_id = Context::where('contextlevel', 70)->where('instanceid', $courseModule->id)->first('id')->id;
+    
+            $files = DB::connection('moodle_mysql')->table('mdl_files')
+            ->where('contextid', $ctx_id)
+            ->where('component', 'assignsubmission_file')
+            ->where('filearea', 'submission_files')
+            ->where('itemid', $assignmentSubmission->id)
+            ->where('filename', '!=', '.')
+            ->orderBy('id')
+            ->get();
+    
+            $files = $files->map(function($e){
+                $e->id = $e->id;
+                $e->name = $e->filename;
+                $e->file = "/preview/file/$e->id/$e->filename";
+                $e->size = number_format($e->filesize / 1024 / 1024, 2) . ' MB';
+                $e->itemid = $e->itemid;
+                return $e;
+            })->toArray();   
+        }
+
+        if(is_null($assignmentSubmission->timemodified) || $assignmentSubmission->status == 'new'){
+            $status = 'Belum Dikumpulkan';
+        } else {
+            $sub_time = Carbon::parse($assignmentSubmission->timemodified);
+            $assign_time = Carbon::parse($assignment->duedate);
+            if($sub_time->gt($assign_time)){
+                $status = 'Terlambat Dikumpulkan';
+            } else {
+                $status = 'Dikumpulkan';
+            }
+        }
+
+        $grade = AssignGrade::where('assignment', $assignment->id)
+        ->where('userid', $user->id)->first('grade')->grade ?? 0;    
+
+        $data = [
+            'student' => [
+                'name' => $user->firstname . ' ' . $user->lastname,
+                'id' => $user->id,
+                'nim' => $user->username,
+            ],
+            'assignment' => [
+                'name' => $assignment->name,
+                'type' => $type,
+                'files' => $files,
+                'grade' => $grade,
+                'status' => $status,
+            ]
+        ];
+
+        return response()->json([
+            'message' => 'Success',
+            'data' => $data
+        ], 200);
+
+    }
+
 
 
 }

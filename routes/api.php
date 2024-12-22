@@ -3,6 +3,7 @@
 use App\Http\Controllers\API\Activity\ActivityController;
 use App\Http\Controllers\API\Activity\AssignmentController;
 use App\Http\Controllers\API\Activity\FileController as ActivityFileController;
+use App\Http\Controllers\API\Activity\QuizController;
 use App\Http\Controllers\API\Activity\UrlController;
 use App\Http\Controllers\API\AuthController;
 use App\Http\Controllers\API\CourseController;
@@ -40,6 +41,7 @@ Route::middleware('auth.bearer')->group(function () {
             Route::group(['prefix' => 'activity'], function(){
                 Route::post('/url', [UrlController::class, 'store']);    
                 Route::post('/resource', [ActivityFileController::class, 'store']);    
+                Route::post('/quiz', [QuizController::class, 'store']);    
 
                 
                 Route::group(['prefix' => 'assignment'], function(){
@@ -62,7 +64,14 @@ Route::middleware('auth.bearer')->group(function () {
 
     Route::group(['prefix' => 'assignment'], function(){
         Route::get('/{assignment}', [AssignmentController::class, 'findById']);
+        Route::get('/grade/{assignmentSubmission}', [AssignmentController::class, 'getDetailGrading']);
         Route::put('/{assignment}', [AssignmentController::class, 'update']);
+    });
+
+    Route::group(['prefix' => 'quiz'], function(){
+        Route::get('/{quiz}', [QuizController::class, 'findById']);
+        Route::get('/grade/{assignmentSubmission}', [QuizController::class, 'getDetailGrading']);
+        Route::put('/{quiz}', [QuizController::class, 'update']);
     });
 
     Route::group(['prefix' => 'resource'], function(){
