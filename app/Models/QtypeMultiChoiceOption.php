@@ -5,20 +5,14 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
-class Question extends Model
+class QtypeMultiChoiceOption extends Model
 {
     use HasFactory;
 
-    protected $guarded = ['id'];
-
-    protected $table = 'mdl_question';
+    protected $table = 'mdl_qtype_multichoice_options';
 
     protected $connection = 'moodle_mysql';
 
     public $timestamps = false;
-
-    public function answers(){
-        return $this->hasMany(Answer::class);
-    }
 
 }

@@ -12,6 +12,11 @@ use App\Models\GradeCategory;
 use App\Models\GradeItem;
 use App\Models\GradeItemHistory;
 use App\Models\Module;
+use App\Models\QtypeMultiChoiceOption;
+use App\Models\Question;
+use App\Models\QuestionAnswer;
+use App\Models\QuestionBankEntry;
+use App\Models\QuestionVersion;
 use App\Models\Quiz;
 use App\Models\QuizSection;
 use Carbon\Carbon;
@@ -278,4 +283,298 @@ class QuizController extends Controller
             ], 500);
         }
     }
+
+    public function getBankQuestion($shortname){
+
+        $course = Course::where('shortname', $shortname)->first();
+
+        $ctx = Context::where('instanceid', $course->id)->where('contextlevel', 50)->first();
+
+        $categories = DB::connection('moodle_mysql')->table('mdl_question_categories')
+        ->where('contextid', $ctx->id)
+        ->orderBy('id', 'DESC')
+        ->get();
+
+        $res = DB::connection('moodle_mysql')->table('mdl_question as q')
+            ->join('mdl_question_versions as qv', 'qv.questionid', '=', 'q.id')
+            ->join('mdl_question_bank_entries as qbe', 'qbe.id', '=', 'qv.questionbankentryid')
+            ->join('mdl_question_categories as qc', 'qc.id', '=', 'qbe.questioncategoryid')
+            ->where('q.parent', 0)
+            ->where(function ($subQuery) {
+                $subQuery->where('qv.status', 'ready')
+                        ->orWhere('qv.status', 'draft');
+            })
+            ->where('qbe.questioncategoryid', $categories[0]->id)
+            ->whereRaw('qv.version = (SELECT MAX(v.version)
+                                        FROM mdl_question_versions v
+                                        JOIN mdl_question_bank_entries be 
+                                        ON be.id = v.questionbankentryid
+                                        WHERE be.id = qbe.id)')
+            ->orderBy('q.qtype', 'asc')
+            ->orderBy('q.name', 'asc')
+            ->select([
+                'qv.status',
+                'qc.id as categoryid',
+                'qv.version',
+                'qv.id as versionid',
+                'qbe.id as questionbankentryid',
+                'q.id',
+                'q.qtype',
+                'q.name',
+                'qbe.idnumber',
+                'q.createdby',
+                'qc.contextid',
+                'q.timecreated',
+                'q.timemodified',
+            ])
+        ->get();
+
+        return response()->json([
+            'message' => 'Success',
+            'data' => $res
+        ]);
+
+    }
+
+    public function storeQuestion(Request $request, $shortname){
+        $course = Course::where('shortname', $shortname)->first();
+
+        $ctx = Context::where('instanceid', $course->id)->where('contextlevel', 50)->first();
+
+        $categories = DB::connection('moodle_mysql')->table('mdl_question_categories')
+        ->where('contextid', $ctx->id)
+        ->orderBy('id', 'DESC')
+        ->get();
+
+        DB::connection('moodle_mysql')->beginTransaction();
+
+        if($request->type == 'multiple_choice'){
+            $qtype = 'multichoice';
+        }
+
+        try {
+            //code...
+            $question = Question::create([
+                'parent' => 0,
+                'name' => $request->name,
+                'questiontext' => $request->description,
+                'questiontextformat' => 1,
+                'qtype' => $qtype,
+                'stamp' => 'localhost:8888+241224110017+FsP2Eu',
+                'generalfeedback' => '',
+                'generalfeedbackformat' => 1,
+                'timecreated' => now()->timestamp,
+                'timemodified' => now()->timestamp,
+                'createdby' => $request->user()->id,
+                'modifiedby' => $request->user()->id,
+            ]);
+    
+            $qbe = QuestionBankEntry::create([
+                'questioncategoryid' => $categories[0]->id,
+                'idnumber' => null,
+                'ownerid' => $request->user()->id,
+            ]);
+    
+            $qv = QuestionVersion::create([
+                'questionbankentryid' => $qbe->id,
+                'questionid' => $question->id,
+                'version' => 1,
+                'status' => 'ready',
+            ]);
+    
+            if($qtype == 'multichoice'){
+                $options = $request->questionConfig['options'];
+                foreach ($options as $key => $value) {
+                    $correct = 0;
+                    if($value['isRight']){
+                        $correct = 1;
+                    }
+                    QuestionAnswer::create([
+                        'question' => $question->id,
+                        'answer' => $value['value'],
+                        'fraction' => $correct,
+                        'feedback' => '',
+                        'feedbackformat' => 1,
+                    ]);
+                }
+    
+                QtypeMultiChoiceOption::create([
+                    'questionid' => $question->id,
+                    'correctfeedback' => '<p>Jawaban anda benar</p>',
+                    'partiallycorrectfeedback' => '<p>Jawaban anda benar sebagian</p>',
+                    'incorrectfeedback' => '<p>Jawaban anda salah</p>',
+                    'showstandardinstruction' => 0,
+                    'single' => 1,
+                    'answernumbering' => 'abc',
+                    'shuffleanswers' => 1,
+                    'correctfeedbackformat' => 1,
+                    'partiallycorrectfeedbackformat' => 1,
+                    'incorrectfeedbackformat' => 1,
+                    'shownumcorrect' => 1,
+                ]);
+    
+            }
+
+            DB::connection('moodle_mysql')->commit();
+
+        } catch (\Throwable $th) {
+            DB::connection('moodle_mysql')->rollBack();
+            return response()->json([
+                'message' => $th->getMessage(),
+                'data' => null
+            ], 500);
+        }
+
+        
+    }
+
+    public function deleteQuestion($shortname, Question $question){
+        DB::connection('moodle_mysql')->beginTransaction();
+
+        try {
+        
+            if($question->qtype == 'multichoice'){
+                QtypeMultiChoiceOption::where('questionid', $question->id)->delete();
+                QuestionAnswer::where('question', $question->id)->delete();
+                DB::connection('moodle_mysql')->table('mdl_question_hints')->where('questionid', $question->id)->delete();
+                DB::connection('moodle_mysql')->table('mdl_question_hints')->where('questionid', $question->id)->delete();
+                $qv = QuestionVersion::where('questionid', $question->id)->get();
+                foreach ($qv as $qvv) {
+                    QuestionBankEntry::where('id', $qvv->questionbankentryid)->delete();
+                    $qvv->delete();
+                }
+            }
+
+            $question->delete();
+            DB::connection('moodle_mysql')->commit();
+        } catch (\Throwable $th) {
+            DB::connection('moodle_mysql')->rollBack();
+            return response()->json([
+                'message' => $th->getMessage(),
+                'data' => null
+            ], 500);
+        }
+    }
+
+    public function getQuestionById($shortname, Question $question){
+        $instance = new \stdClass();
+
+        $instance->id = $question->id;
+        $instance->name = $question->name;
+        $instance->description = $question->questiontext;
+
+        if($question->qtype == 'multichoice'){
+            $instance->type = 'multiple_choice';
+        }
+
+        if($question->qtype == 'multichoice'){
+            $options = QuestionAnswer::where('question', $question->id)->get();
+            $instance->questionConfig = [
+                'options' => $options->map(function($item){
+                    return [
+                        'value' => $item->answer,
+                        'isRight' => $item->fraction == 1 ? true : false
+                    ];
+                })->toArray(),
+                'numberOfOptions' => $options->count()
+            ];
+        }
+
+        return response()->json([
+            'message' => 'Success',
+            'data' => $instance
+        ], 200);
+
+    }
+
+    public function updateQuestion(Request $request, $shortname, Question $question){
+
+        $course = Course::where('shortname', $shortname)->first();
+
+        $ctx = Context::where('instanceid', $course->id)->where('contextlevel', 50)->first();
+
+        $categories = DB::connection('moodle_mysql')->table('mdl_question_categories')
+        ->where('contextid', $ctx->id)
+        ->orderBy('id', 'DESC')
+        ->get();
+
+        $oldQv = QuestionVersion::where('questionid', $question->id)
+            ->orderBy('version', 'desc')
+            ->first();
+
+        DB::connection('moodle_mysql')->beginTransaction();
+
+        if($request->type == 'multiple_choice'){
+            $qtype = 'multichoice';
+        }
+
+        try {
+            //code...
+            $question = Question::create([
+                'parent' => 0,
+                'name' => $request->name,
+                'questiontext' => $request->description,
+                'questiontextformat' => 1,
+                'qtype' => $qtype,
+                'stamp' => 1,
+                'generalfeedback' => '',
+                'generalfeedbackformat' => 1,
+                'timecreated' => now()->timestamp,
+                'timemodified' => now()->timestamp,
+                'createdby' => $request->user()->id,
+                'modifiedby' => $request->user()->id,
+            ]);
+    
+            $qv = QuestionVersion::create([
+                'questionbankentryid' => $oldQv->questionbankentryid,
+                'questionid' => $question->id,
+                'version' => $oldQv->version + 1,
+                'status' => 'ready',
+            ]);
+    
+            if($qtype == 'multichoice'){
+                $options = $request->questionConfig['options'];
+                foreach ($options as $key => $value) {
+                    $correct = 0;
+                    if($value['isRight']){
+                        $correct = 1;
+                    }
+                    QuestionAnswer::create([
+                        'question' => $question->id,
+                        'answer' => $value['value'],
+                        'fraction' => $correct,
+                        'feedback' => '',
+                        'feedbackformat' => 1,
+                    ]);
+                }
+    
+                QtypeMultiChoiceOption::create([
+                    'questionid' => $question->id,
+                    'correctfeedback' => '<p>Jawaban anda benar</p>',
+                    'partiallycorrectfeedback' => '<p>Jawaban anda benar sebagian</p>',
+                    'incorrectfeedback' => '<p>Jawaban anda salah</p>',
+                    'showstandardinstruction' => 0,
+                    'single' => 1,
+                    'answernumbering' => 'abc',
+                    'shuffleanswers' => 1,
+                    'correctfeedbackformat' => 1,
+                    'partiallycorrectfeedbackformat' => 1,
+                    'incorrectfeedbackformat' => 1,
+                    'shownumcorrect' => 1,
+                ]);
+    
+            }
+
+            DB::connection('moodle_mysql')->commit();
+
+        } catch (\Throwable $th) {
+            DB::connection('moodle_mysql')->rollBack();
+            return response()->json([
+                'message' => $th->getMessage(),
+                'data' => null
+            ], 500);
+        }
+
+    }
+
 }

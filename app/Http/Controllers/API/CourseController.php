@@ -187,9 +187,7 @@ class CourseController extends Controller
 
         return response()->json([
             'message' => 'Success',
-            'data' => [
-                'topics' => $sections
-            ]
+            'data' => $sections
         ], 200);
 
     }

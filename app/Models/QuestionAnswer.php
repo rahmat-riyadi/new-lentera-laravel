@@ -10,4 +10,11 @@ class QuestionAnswer extends Model
     use HasFactory;
 
     protected $guarded = ['id'];
+
+    protected $table = 'mdl_question_answers';
+
+    protected $connection = 'moodle_mysql';
+
+    public $timestamps = false;
+
 }

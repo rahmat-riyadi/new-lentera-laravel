@@ -70,7 +70,13 @@ Route::middleware('auth.bearer')->group(function () {
 
     Route::group(['prefix' => 'quiz'], function(){
         Route::get('/{quiz}', [QuizController::class, 'findById']);
-        Route::get('/grade/{assignmentSubmission}', [QuizController::class, 'getDetailGrading']);
+        Route::group(['prefix' => '{shortname}/questions'], function(){
+            Route::get('/', [QuizController::class, 'getBankQuestion']);
+            Route::get('/{question}', [QuizController::class, 'getQuestionById']);
+            Route::post('/', [QuizController::class, 'storeQuestion']);
+            Route::post('/{question}', [QuizController::class, 'updateQuestion']);
+            Route::delete('/{question}', [QuizController::class, 'deleteQuestion']);
+        });
         Route::put('/{quiz}', [QuizController::class, 'update']);
     });
 
