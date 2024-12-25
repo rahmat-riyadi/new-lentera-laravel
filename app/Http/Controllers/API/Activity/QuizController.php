@@ -12,10 +12,12 @@ use App\Models\GradeCategory;
 use App\Models\GradeItem;
 use App\Models\GradeItemHistory;
 use App\Models\Module;
+use App\Models\QtypeEssaiOption;
 use App\Models\QtypeMultiChoiceOption;
 use App\Models\Question;
 use App\Models\QuestionAnswer;
 use App\Models\QuestionBankEntry;
+use App\Models\QuestionTrueFalse;
 use App\Models\QuestionVersion;
 use App\Models\Quiz;
 use App\Models\QuizSection;
@@ -348,9 +350,15 @@ class QuizController extends Controller
 
         DB::connection('moodle_mysql')->beginTransaction();
 
+        $qtype = $request->type;
+
         if($request->type == 'multiple_choice'){
             $qtype = 'multichoice';
-        }
+        } 
+
+        if($request->type == 'true_false'){
+            $qtype = 'truefalse';
+        } 
 
         try {
             //code...
@@ -415,6 +423,51 @@ class QuizController extends Controller
     
             }
 
+            if($qtype == 'truefalse'){
+                $trueAnswer = QuestionAnswer::create([
+                    'question' => $question->id,
+                    'answer' =>  'True',
+                    'fraction' => $request->questionConfig['true']['isRight'] ? 1 : 0,
+                    'feedback' => '',
+                    'feedbackformat' => 1,
+                ]);
+
+                $falseAnswer = QuestionAnswer::create([
+                    'question' => $question->id,
+                    'answer' =>  'False',
+                    'fraction' => $request->questionConfig['false']['isRight'] ? 1 : 0,
+                    'feedback' => '',
+                    'feedbackformat' => 1,
+                ]);
+
+                QuestionTrueFalse::create([
+                    'question' => $question->id,
+                    'trueanswer' => $trueAnswer->id,
+                    'falseanswer' => $falseAnswer->id,
+                    'showstandardinstruction' => 0
+                ]);
+
+            }
+
+            if($qtype == 'essay'){
+                QtypeEssaiOption::create([
+                    'questionid' => $question->id,
+                    'responseformat' => 'editor',
+                    'responserequired' => 1,
+                    'responsefieldlines' => 10,
+                    'minwordlimit' => null,
+                    'maxwordlimit' => null,
+                    'attachments' => 0,
+                    'attachmentsrequired' => 0,
+                    'filetypeslist' => '',
+                    'maxbytes' => 0,
+                    'graderinfo' => '',
+                    'graderinfoformat' => 1,
+                    'responsetemplate' => '',
+                    'responsetemplateformat' => 1,
+                ]);
+            }
+
             DB::connection('moodle_mysql')->commit();
 
         } catch (\Throwable $th) {
@@ -435,14 +488,23 @@ class QuizController extends Controller
         
             if($question->qtype == 'multichoice'){
                 QtypeMultiChoiceOption::where('questionid', $question->id)->delete();
-                QuestionAnswer::where('question', $question->id)->delete();
-                DB::connection('moodle_mysql')->table('mdl_question_hints')->where('questionid', $question->id)->delete();
-                DB::connection('moodle_mysql')->table('mdl_question_hints')->where('questionid', $question->id)->delete();
-                $qv = QuestionVersion::where('questionid', $question->id)->get();
-                foreach ($qv as $qvv) {
-                    QuestionBankEntry::where('id', $qvv->questionbankentryid)->delete();
-                    $qvv->delete();
-                }
+            }
+
+            if($question->qtype == 'truefalse'){
+                $trueFalse = QuestionTrueFalse::where('question', $question->id)->first();
+                $trueFalse->delete();
+            }
+
+            if($question->qtype == 'essay'){
+                QtypeEssaiOption::where('questionid', $question->id)->delete();
+            }
+            
+            QuestionAnswer::where('question', $question->id)->delete();
+            DB::connection('moodle_mysql')->table('mdl_question_hints')->where('questionid', $question->id)->delete();
+            $qv = QuestionVersion::where('questionid', $question->id)->get();
+            foreach ($qv as $qvv) {
+                QuestionBankEntry::where('id', $qvv->questionbankentryid)->delete();
+                $qvv->delete();
             }
 
             $question->delete();
@@ -463,13 +525,27 @@ class QuizController extends Controller
         $instance->name = $question->name;
         $instance->description = $question->questiontext;
 
+        $instance->type = $question->qtype;
+
         if($question->qtype == 'multichoice'){
             $instance->type = 'multiple_choice';
         }
 
+        if($question->qtype == 'truefalse'){
+            $instance->type = 'true_false';
+        }
+
+        $instance->questionConfig = [
+            'options' => [],
+            'true' => [ 'isRight' => false ],
+            'false' => [ 'isRight' => false ],
+            'numberOfOptions' => 0
+        ];
+
         if($question->qtype == 'multichoice'){
             $options = QuestionAnswer::where('question', $question->id)->get();
             $instance->questionConfig = [
+                ...$instance->questionConfig,
                 'options' => $options->map(function($item){
                     return [
                         'value' => $item->answer,
@@ -477,6 +553,21 @@ class QuizController extends Controller
                     ];
                 })->toArray(),
                 'numberOfOptions' => $options->count()
+            ];
+        }
+
+        if($question->qtype == 'truefalse'){
+            $trueFalse = QuestionTrueFalse::where('question', $question->id)->first();
+            $true = QuestionAnswer::where('id', $trueFalse->trueanswer)->first();
+            $false = QuestionAnswer::where('id', $trueFalse->falseanswer)->first();
+            $instance->questionConfig = [
+                ...$instance->questionConfig,
+                'true' => [
+                    'isRight' => $true->fraction == 1 ? true : false
+                ],
+                'false' => [
+                    'isRight' => $false->fraction == 1 ? true : false
+                ]
             ];
         }
 
@@ -491,21 +582,20 @@ class QuizController extends Controller
 
         $course = Course::where('shortname', $shortname)->first();
 
-        $ctx = Context::where('instanceid', $course->id)->where('contextlevel', 50)->first();
-
-        $categories = DB::connection('moodle_mysql')->table('mdl_question_categories')
-        ->where('contextid', $ctx->id)
-        ->orderBy('id', 'DESC')
-        ->get();
-
         $oldQv = QuestionVersion::where('questionid', $question->id)
             ->orderBy('version', 'desc')
             ->first();
 
         DB::connection('moodle_mysql')->beginTransaction();
 
+        $qtype = $request->type;
+
         if($request->type == 'multiple_choice'){
             $qtype = 'multichoice';
+        }
+
+        if($request->type == 'true_false'){
+            $qtype = 'truefalse';
         }
 
         try {
@@ -563,6 +653,51 @@ class QuizController extends Controller
                     'shownumcorrect' => 1,
                 ]);
     
+            }
+
+            if($qtype == 'truefalse'){
+                $trueAnswer = QuestionAnswer::create([
+                    'question' => $question->id,
+                    'answer' =>  'True',
+                    'fraction' => $request->questionConfig['true']['isRight'] ? 1 : 0,
+                    'feedback' => '',
+                    'feedbackformat' => 1,
+                ]);
+
+                $falseAnswer = QuestionAnswer::create([
+                    'question' => $question->id,
+                    'answer' =>  'False',
+                    'fraction' => $request->questionConfig['false']['isRight'] ? 1 : 0,
+                    'feedback' => '',
+                    'feedbackformat' => 1,
+                ]);
+
+                QuestionTrueFalse::create([
+                    'question' => $question->id,
+                    'trueanswer' => $trueAnswer->id,
+                    'falseanswer' => $falseAnswer->id,
+                    'showstandardinstruction' => 0
+                ]);
+
+            }
+
+            if($qtype == 'essay'){
+                QtypeEssaiOption::create([
+                    'questionid' => $question->id,
+                    'responseformat' => 'editor',
+                    'responserequired' => 1,
+                    'responsefieldlines' => 10,
+                    'minwordlimit' => null,
+                    'maxwordlimit' => null,
+                    'attachments' => 0,
+                    'attachmentsrequired' => 0,
+                    'filetypeslist' => '',
+                    'maxbytes' => 0,
+                    'graderinfo' => '',
+                    'graderinfoformat' => 1,
+                    'responsetemplate' => '',
+                    'responsetemplateformat' => 1,
+                ]);
             }
 
             DB::connection('moodle_mysql')->commit();
