@@ -70,13 +70,21 @@ Route::middleware('auth.bearer')->group(function () {
 
     Route::group(['prefix' => 'quiz'], function(){
         Route::get('/{quiz}', [QuizController::class, 'findById']);
+
         Route::group(['prefix' => '{shortname}/questions'], function(){
             Route::get('/', [QuizController::class, 'getBankQuestion']);
             Route::get('/{question}', [QuizController::class, 'getQuestionById']);
+            Route::get('/quiz/{quiz}', [QuizController::class, 'getQuizQuestion']);
+
             Route::post('/', [QuizController::class, 'storeQuestion']);
             Route::post('/{question}', [QuizController::class, 'updateQuestion']);
+            Route::post('/insert-question/{quiz}', [QuizController::class, 'insertQuestionToQuiz']);
+            Route::post('/store-question-and-insert/{quiz}', [QuizController::class, 'storeQuestionAndInsertToQuiz']);
+
             Route::delete('/{question}', [QuizController::class, 'deleteQuestion']);
+            Route::delete('/quiz/{quiz}/slot/{slotid}', [QuizController::class, 'deleteQuestionFromQuiz']);
         });
+
         Route::put('/{quiz}', [QuizController::class, 'update']);
     });
 

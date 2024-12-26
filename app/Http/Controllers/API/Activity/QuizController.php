@@ -7,6 +7,8 @@ use App\Helpers\GlobalHelper;
 use App\Http\Controllers\Controller;
 use App\Models\Context;
 use App\Models\Course;
+use App\Models\CourseModule;
+use App\Models\CourseSection;
 use App\Models\Event;
 use App\Models\GradeCategory;
 use App\Models\GradeItem;
@@ -17,10 +19,13 @@ use App\Models\QtypeMultiChoiceOption;
 use App\Models\Question;
 use App\Models\QuestionAnswer;
 use App\Models\QuestionBankEntry;
+use App\Models\QuestionRefenrence;
 use App\Models\QuestionTrueFalse;
 use App\Models\QuestionVersion;
 use App\Models\Quiz;
+use App\Models\QuizAttempt;
 use App\Models\QuizSection;
+use App\Models\QuizSlot;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -57,6 +62,15 @@ class QuizController extends Controller
             $instance->time_limit_type = 'minute';
             $instance->time_limit = $quiz->timelimit / 60;
         }
+
+        $cm = CourseModule::where('instance', $quiz->id)
+        ->where('module', Module::where('name', 'quiz')->first()->id)
+        ->where('course', $quiz->course)
+        ->first();
+
+        $cs = CourseSection::where('id', $cm->section)->first(['section', 'name']);
+
+        $instance->course_section = $cs;
 
         return response()->json([
             'message' => 'Success',
@@ -286,7 +300,9 @@ class QuizController extends Controller
         }
     }
 
-    public function getBankQuestion($shortname){
+    public function getBankQuestion(Request $request, $shortname){
+
+        $perpage = $request->query('perpage') ?? 10;
 
         $course = Course::where('shortname', $shortname)->first();
 
@@ -329,7 +345,7 @@ class QuizController extends Controller
                 'q.timecreated',
                 'q.timemodified',
             ])
-        ->get();
+        ->paginate($perpage);
 
         return response()->json([
             'message' => 'Success',
@@ -709,6 +725,377 @@ class QuizController extends Controller
                 'data' => null
             ], 500);
         }
+
+    }
+
+    public function insertQuestionToQuiz(Request $request, $shortname, Quiz $quiz){
+
+        $module = Module::where('name', 'quiz')->first();
+
+        $course = Course::where('shortname', $shortname)->first();
+
+        $cm = CourseModule::where('course', $course->id)
+        ->where('module', $module->id)
+        ->where('instance', $quiz->id)
+        ->first();       
+
+        $ctx = Context::where('instanceid', $cm->id)->where('contextlevel', 70)->first();
+
+        $oldqs = QuizSlot::where('quizid', $quiz->id)->orderBy('slot', 'desc')->first();
+
+        $slot = $oldqs ? $oldqs->slot + 1 : 1;
+        $page = $oldqs ? $oldqs->page + 1 : 1;
+
+        DB::connection('moodle_mysql')->beginTransaction();
+        
+        try {
+            foreach ($request->questions as $question) {
+                
+                $qba = DB::connection('moodle_mysql')->table('mdl_question as q')
+                ->join('mdl_question_versions as qv', 'qv.questionid', '=', 'q.id')
+                ->join('mdl_question_bank_entries as qbe', 'qbe.id', '=', 'qv.questionbankentryid')
+                ->select('qbe.*')
+                ->where('q.id', '=', $question)
+                ->get();
+
+                $exists = QuestionRefenrence::where('questionbankentryid', $qba[0]->id)
+                ->where('usingcontextid', $ctx->id)
+                ->exists();
+
+                if($exists){
+                    continue;
+                }
+    
+                $qs = QuizSlot::create([
+                    'quizid' => $quiz->id,
+                    'maxmark' => 1,
+                    'slot' => $slot++,
+                    'page' => $page++,
+                ]);
+        
+                QuestionRefenrence::create([
+                    'usingcontextid' => $ctx->id,
+                    'component' => 'mod_quiz',
+                    'questionarea' => 'slot',
+                    'itemid' => $qs->id,
+                    'questionbankentryid' => $qba[0]->id,
+                    'version' => null,
+                ]);
+            }
+
+            DB::connection('moodle_mysql')->commit();
+            return response()->json([
+                'message' => 'Questions added to quiz successfully',
+                'data' => null
+            ], 200);
+
+        } catch (\Throwable $th) {
+            DB::connection('moodle_mysql')->rollBack();
+            return response()->json([
+                'message' => $th->getMessage(),
+                'data' => null
+            ], 500);
+        }
+
+    }
+
+    public function getQuizQuestion($shortname, Quiz $quiz){
+
+        $cm = CourseModule::where('instance', $quiz->id)
+        ->where('module', Module::where('name', 'quiz')->first()->id)
+        ->where('course', $quiz->course)
+        ->first();
+
+        $ctx = Context::where('instanceid', $cm->id)->where('contextlevel', 70)->first();
+
+        $questions = DB::connection('moodle_mysql')->table('mdl_quiz_slots as slot')
+        ->select([
+            'slot.slot',
+            'slot.id as slotid',
+            'slot.page',
+            'slot.maxmark',
+            'slot.displaynumber',
+            'slot.requireprevious',
+            'qsr.filtercondition',
+            'qv.status',
+            'qv.id as versionid',
+            'qv.version',
+            'qr.version as requestedversion',
+            'qv.questionbankentryid',
+            'q.id as questionid',
+            'q.*',
+            'qc.id as category',
+            DB::raw('COALESCE(qc.contextid, qsr.questionscontextid) as contextid'),
+        ])
+        ->leftJoin('mdl_question_references as qr', function ($join) use ($ctx) {
+            $join->on('qr.itemid', '=', 'slot.id')
+                ->where('qr.usingcontextid', '=', $ctx->id)
+                ->where('qr.component', '=', 'mod_quiz')
+                ->where('qr.questionarea', '=', 'slot');
+        })
+        ->leftJoin('mdl_question_bank_entries as qbe', 'qbe.id', '=', 'qr.questionbankentryid')
+        ->leftJoin(DB::raw("
+            (
+                SELECT 
+                    lv.questionbankentryid,
+                    MAX(CASE WHEN lv.status <> 'draft' THEN lv.version END) AS usableversion,
+                    MAX(lv.version) AS anyversion
+                FROM mdl_quiz_slots lslot
+                JOIN mdl_question_references lqr 
+                    ON lqr.usingcontextid = {$ctx->id} 
+                    AND lqr.component = 'mod_quiz'
+                    AND lqr.questionarea = 'slot'
+                    AND lqr.itemid = lslot.id
+                JOIN mdl_question_versions lv 
+                    ON lv.questionbankentryid = lqr.questionbankentryid
+                WHERE lslot.quizid = {$quiz->id}
+                AND lqr.version IS NULL
+                GROUP BY lv.questionbankentryid
+            ) as latestversions
+        "), 'latestversions.questionbankentryid', '=', 'qr.questionbankentryid')
+        ->leftJoin('mdl_question_versions as qv', function ($join) {
+            $join->on('qv.questionbankentryid', '=', 'qbe.id')
+                ->whereRaw('qv.version = COALESCE(qr.version, latestversions.usableversion, latestversions.anyversion)');
+        })
+        ->leftJoin('mdl_question_categories as qc', 'qc.id', '=', 'qbe.questioncategoryid')
+        ->leftJoin('mdl_question as q', 'q.id', '=', 'qv.questionid')
+        ->leftJoin('mdl_question_set_references as qsr', function ($join) use ($ctx) {
+            $join->on('qsr.itemid', '=', 'slot.id')
+                ->where('qsr.usingcontextid', '=', $ctx->id)
+                ->where('qsr.component', '=', 'mod_quiz')
+                ->where('qsr.questionarea', '=', 'slot');
+        })
+        ->where('slot.quizid', '=', $quiz->id)
+        ->orderBy('slot.slot')
+        ->get();
+
+        return response()->json([
+            'message' => 'Success',
+            'data' => $questions
+        ]);
+
+    }
+
+    public function deleteQuestionFromQuiz($shortname, Quiz $quiz, $slotid){
+
+        $quizSlot = QuizSlot::where('quizid', $quiz->id)
+                            ->where('id', $slotid)
+                            ->firstOrFail();
+
+        // 2. Check if there are any non-preview attempts
+        $hasAttempts = QuizAttempt::where('quiz', $quiz->id)
+                                    ->where('preview', 0)
+                                    ->exists();
+
+        if ($hasAttempts) {
+            throw new \Exception('Cannot delete question from quiz with existing attempts');
+        }
+
+        $qr = QuestionRefenrence::where('itemid', $slotid)
+        ->where('component', 'mod_quiz')
+        ->where('questionarea', 'slot')
+        ->first();
+
+        $currSlot = $quizSlot->slot;
+
+        DB::connection('moodle_mysql')->beginTransaction();
+
+        try {
+            $qr->delete();
+            $quizSlot->delete();
+
+            $qs = QuizSlot::where('quizid', $quiz->id)
+            ->orderBy('slot')
+            ->orderBy('page')
+            ->get();
+
+            foreach ($qs as $slot) {
+                if($slot->slot > $currSlot){
+                    $slot->update([
+                        'slot' => $slot->slot - 1,
+                        'page' => $slot->page - 1,
+                    ]);
+                }
+            }
+
+            DB::connection('moodle_mysql')->commit();
+        } catch (\Throwable $th) {
+            DB::connection('moodle_mysql')->rollBack();
+            return response()->json([
+                'message' => $th->getMessage(),
+                'data' => null
+            ], 500);
+        }
+    }
+
+    public function storeQuestionAndInsertToQuiz(Request $request, $shortname, Quiz $quiz){
+
+        $course = Course::where('shortname', $shortname)->first();
+
+        $ctx = Context::where('instanceid', $course->id)->where('contextlevel', 50)->first();
+
+        $categories = DB::connection('moodle_mysql')->table('mdl_question_categories')
+        ->where('contextid', $ctx->id)
+        ->orderBy('id', 'DESC')
+        ->get();
+
+        DB::connection('moodle_mysql')->beginTransaction();
+
+        $qtype = $request->type;
+
+        if($request->type == 'multiple_choice'){
+            $qtype = 'multichoice';
+        } 
+
+        if($request->type == 'true_false'){
+            $qtype = 'truefalse';
+        } 
+
+        try {
+            //code...
+            $question = Question::create([
+                'parent' => 0,
+                'name' => $request->name,
+                'questiontext' => $request->description,
+                'questiontextformat' => 1,
+                'qtype' => $qtype,
+                'stamp' => 'localhost:8888+241224110017+FsP2Eu',
+                'generalfeedback' => '',
+                'generalfeedbackformat' => 1,
+                'timecreated' => now()->timestamp,
+                'timemodified' => now()->timestamp,
+                'createdby' => $request->user()->id,
+                'modifiedby' => $request->user()->id,
+            ]);
+    
+            $qbe = QuestionBankEntry::create([
+                'questioncategoryid' => $categories[0]->id,
+                'idnumber' => null,
+                'ownerid' => $request->user()->id,
+            ]);
+    
+            $qv = QuestionVersion::create([
+                'questionbankentryid' => $qbe->id,
+                'questionid' => $question->id,
+                'version' => 1,
+                'status' => 'ready',
+            ]);
+    
+            if($qtype == 'multichoice'){
+                $options = $request->questionConfig['options'];
+                foreach ($options as $key => $value) {
+                    $correct = 0;
+                    if($value['isRight']){
+                        $correct = 1;
+                    }
+                    QuestionAnswer::create([
+                        'question' => $question->id,
+                        'answer' => $value['value'],
+                        'fraction' => $correct,
+                        'feedback' => '',
+                        'feedbackformat' => 1,
+                    ]);
+                }
+    
+                QtypeMultiChoiceOption::create([
+                    'questionid' => $question->id,
+                    'correctfeedback' => '<p>Jawaban anda benar</p>',
+                    'partiallycorrectfeedback' => '<p>Jawaban anda benar sebagian</p>',
+                    'incorrectfeedback' => '<p>Jawaban anda salah</p>',
+                    'showstandardinstruction' => 0,
+                    'single' => 1,
+                    'answernumbering' => 'abc',
+                    'shuffleanswers' => 1,
+                    'correctfeedbackformat' => 1,
+                    'partiallycorrectfeedbackformat' => 1,
+                    'incorrectfeedbackformat' => 1,
+                    'shownumcorrect' => 1,
+                ]);
+    
+            }
+
+            if($qtype == 'truefalse'){
+                $trueAnswer = QuestionAnswer::create([
+                    'question' => $question->id,
+                    'answer' =>  'True',
+                    'fraction' => $request->questionConfig['true']['isRight'] ? 1 : 0,
+                    'feedback' => '',
+                    'feedbackformat' => 1,
+                ]);
+
+                $falseAnswer = QuestionAnswer::create([
+                    'question' => $question->id,
+                    'answer' =>  'False',
+                    'fraction' => $request->questionConfig['false']['isRight'] ? 1 : 0,
+                    'feedback' => '',
+                    'feedbackformat' => 1,
+                ]);
+
+                QuestionTrueFalse::create([
+                    'question' => $question->id,
+                    'trueanswer' => $trueAnswer->id,
+                    'falseanswer' => $falseAnswer->id,
+                    'showstandardinstruction' => 0
+                ]);
+
+            }
+
+            if($qtype == 'essay'){
+                QtypeEssaiOption::create([
+                    'questionid' => $question->id,
+                    'responseformat' => 'editor',
+                    'responserequired' => 1,
+                    'responsefieldlines' => 10,
+                    'minwordlimit' => null,
+                    'maxwordlimit' => null,
+                    'attachments' => 0,
+                    'attachmentsrequired' => 0,
+                    'filetypeslist' => '',
+                    'maxbytes' => 0,
+                    'graderinfo' => '',
+                    'graderinfoformat' => 1,
+                    'responsetemplate' => '',
+                    'responsetemplateformat' => 1,
+                ]);
+            }
+
+            $module = Module::where('name', 'quiz')->first();
+
+            $cm = CourseModule::where('course', $course->id)
+            ->where('module', $module->id)
+            ->where('instance', $quiz->id)
+            ->first();       
+
+            $module_ctx = Context::where('instanceid', $cm->id)->where('contextlevel', 70)->first();
+
+            $oldqs = QuizSlot::where('quizid', $quiz->id)->orderBy('slot', 'desc')->first();
+
+            $qs = QuizSlot::create([
+                'quizid' => $quiz->id,
+                'maxmark' => 1,
+                'slot' => $oldqs ? $oldqs->slot + 1 : 1,
+                'page' => $oldqs ? $oldqs->page + 1 : 1,
+            ]);
+    
+            QuestionRefenrence::create([
+                'usingcontextid' => $module_ctx->id,
+                'component' => 'mod_quiz',
+                'questionarea' => 'slot',
+                'itemid' => $qs->id,
+                'questionbankentryid' => $qbe->id,
+                'version' => null,
+            ]);
+
+            DB::connection('moodle_mysql')->commit();
+
+        } catch (\Throwable $th) {
+            DB::connection('moodle_mysql')->rollBack();
+            return response()->json([
+                'message' => $th->getMessage(),
+                'data' => null
+            ], 500);
+        }
+
 
     }
 
