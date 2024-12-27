@@ -11,67 +11,67 @@ state(['curr_tab', 'courses', 'showed_courses', 'colors', 'activities']);
 mount(function () {
     $this->colors = ['#36B37E', '#00AED6', '#93328E'];
     $this->curr_tab = 'current';
-    $this->get_courses();
-    $this->change_courses('current');
-    $time = time();
-    $courseids = Course::
-    whereIn('mdl_course.id', function($q) use ($time){
-        $q->select('e.courseid')
-        ->from('mdl_enrol as e')
-        ->join('mdl_user_enrolments as ue', function ($join) {
-            $join->on('ue.enrolid', '=', 'e.id')
-                ->where('ue.userid', '=', auth()->user()->id);
-        })
-        ->join('mdl_course as c', 'c.id', '=', 'e.courseid')
-        ->where('ue.status', '=', '0')
-        ->where('e.status', '=', '0')
-        ->where('ue.timestart', '<=', $time)
-        ->where(function ($query) use ($time) {
-            $query->where('ue.timeend', '=', 0)
-                    ->orWhere('ue.timeend', '<', $time);
-        });
-    })
-    ->pluck('id');
+    // $this->get_courses();
+    // $this->change_courses('current');
+    // $time = time();
+    // $courseids = Course::
+    // whereIn('mdl_course.id', function($q) use ($time){
+    //     $q->select('e.courseid')
+    //     ->from('mdl_enrol as e')
+    //     ->join('mdl_user_enrolments as ue', function ($join) {
+    //         $join->on('ue.enrolid', '=', 'e.id')
+    //             ->where('ue.userid', '=', auth()->user()->id);
+    //     })
+    //     ->join('mdl_course as c', 'c.id', '=', 'e.courseid')
+    //     ->where('ue.status', '=', '0')
+    //     ->where('e.status', '=', '0')
+    //     ->where('ue.timestart', '<=', $time)
+    //     ->where(function ($query) use ($time) {
+    //         $query->where('ue.timeend', '=', 0)
+    //                 ->orWhere('ue.timeend', '<', $time);
+    //     });
+    // })
+    // ->pluck('id');
     
-    $quiz = Quiz::whereIn('course_id', $courseids)
-    ->join('moodle402.mdl_course as c', 'c.id', '=', 'quizzes.course_id')
-    ->whereNotNull('activity_remember')
-    ->where('activity_remember', '<=', \Carbon\Carbon::now())
-    ->select(
-        'quizzes.id',
-        'quizzes.name',
-        'c.fullname as course',
-        'quizzes.due_date',
-        'quizzes.activity_remember',
-    )
-    ->get();
-
-    $quiz = $quiz->map(function($e){
-        $e->type = 'quiz';
-        return $e;
-    });
-
-    $assignment = collect([]);
-
-    // $assignment = Assignment::whereIn('course', $courseids)
-    // ->join('mdl_course as c', 'c.id', '=', 'mdl_assign.course')
+    // $quiz = Quiz::whereIn('course_id', $courseids)
+    // ->join('moodle402.mdl_course as c', 'c.id', '=', 'quizzes.course_id')
     // ->whereNotNull('activity_remember')
-    // // ->where('activity_remember', '<', \Carbon\Carbon::now()->format('Y-m-d'))
+    // ->where('activity_remember', '<=', \Carbon\Carbon::now())
     // ->select(
-    //     'assignments.id',
+    //     'quizzes.id',
+    //     'quizzes.name',
     //     'c.fullname as course',
-    //     'assignments.name',
-    //     'assignments.due_date',
-    //     'assignments.activity_remember',
+    //     'quizzes.due_date',
+    //     'quizzes.activity_remember',
     // )
     // ->get();
 
-    $assignment = $assignment->map(function($e){
-        $e->type = 'assignment';
-        return $e;
-    });
+    // $quiz = $quiz->map(function($e){
+    //     $e->type = 'quiz';
+    //     return $e;
+    // });
 
-    $this->activities = collect($assignment->merge($quiz))->sortBy('due_date');
+    // $assignment = collect([]);
+
+    // // $assignment = Assignment::whereIn('course', $courseids)
+    // // ->join('mdl_course as c', 'c.id', '=', 'mdl_assign.course')
+    // // ->whereNotNull('activity_remember')
+    // // // ->where('activity_remember', '<', \Carbon\Carbon::now()->format('Y-m-d'))
+    // // ->select(
+    // //     'assignments.id',
+    // //     'c.fullname as course',
+    // //     'assignments.name',
+    // //     'assignments.due_date',
+    // //     'assignments.activity_remember',
+    // // )
+    // // ->get();
+
+    // $assignment = $assignment->map(function($e){
+    //     $e->type = 'assignment';
+    //     return $e;
+    // });
+
+    // $this->activities = collect($assignment->merge($quiz))->sortBy('due_date');
 
 });
 
@@ -143,7 +143,7 @@ $get_courses = function (){
 <x-layouts.app>
     @volt
     <div class="grid grid-cols-12 p-7 gap-x-7 no-scrollbar h-full grow overflow-y-auto" >
-        <div class="order-2 md:order-1 col-span-full lg:col-span-9">
+        {{-- <div class="order-2 md:order-1 col-span-full lg:col-span-9">
             <div class="bg-white p-4 rounded-xl mb-7" >
                 <div class="flex items-center mb-3" >
                     <p class="font-bold mr-auto" >Pengingat Aktivitas {{ asset('moodledir') }}</p>
@@ -196,11 +196,6 @@ $get_courses = function (){
             <div class="bg-white p-4 rounded-xl" >
                 <p class="font-semibold text-lg text-[#121212] mb-4" >Mata Kuliah Baru diakses</p>
                 <div class="grid gap-5 sx:grid-cols-1 sm:grid-cols-2 2xl:grid-cols-3" >
-                    {{-- <x-course-card
-                        idx="1"
-                        studyProgram="{{ $showed_courses[0]->categoryInfo->name }}"
-                        course="{{ $showed_courses[0]->fullname }}"
-                    /> --}}
                 </div>
             </div>
             <div class="bg-white p-4 rounded-xl mt-7" >
@@ -263,7 +258,7 @@ $get_courses = function (){
                     @endforeach
                 </div>
             </div>
-        </div>
+        </div> --}}
     </div>
 
     @assets

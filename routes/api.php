@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\API\Activity\ActivityController;
 use App\Http\Controllers\API\Activity\AssignmentController;
+use App\Http\Controllers\API\Activity\AttendanceController;
 use App\Http\Controllers\API\Activity\FileController as ActivityFileController;
 use App\Http\Controllers\API\Activity\QuizController;
 use App\Http\Controllers\API\Activity\UrlController;
@@ -42,6 +43,7 @@ Route::middleware('auth.bearer')->group(function () {
                 Route::post('/url', [UrlController::class, 'store']);    
                 Route::post('/resource', [ActivityFileController::class, 'store']);    
                 Route::post('/quiz', [QuizController::class, 'store']);    
+                Route::post('/attendance', [AttendanceController::class, 'store']);    
 
                 
                 Route::group(['prefix' => 'assignment'], function(){
@@ -60,6 +62,12 @@ Route::middleware('auth.bearer')->group(function () {
     Route::group(['prefix' => 'url'], function(){
         Route::get('/{url}', [UrlController::class, 'findById']);
         Route::put('/{url}', [UrlController::class, 'update']);
+    });
+
+    Route::group(['prefix' => 'attendance'], function(){
+        Route::get('/{attendance}', [AttendanceController::class, 'findById']);
+        Route::get('/{attendance}/detail', [AttendanceController::class, 'getSession']);
+        Route::put('/{attendance}', [AttendanceController::class, 'update']);
     });
 
     Route::group(['prefix' => 'assignment'], function(){

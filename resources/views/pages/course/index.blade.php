@@ -138,6 +138,7 @@ $set_grading_data = function ($type = 'all'){
     ->get();
 
     if($type == 'all' || $type == 'quiz'){
+        return;
         $selectedQuiz = Quiz::where('course_id', $this->course->id)->orderBy('created_at')->get();
     }
 
