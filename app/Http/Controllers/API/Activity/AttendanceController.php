@@ -6,15 +6,18 @@ use App\Helpers\CourseHelper;
 use App\Helpers\GlobalHelper;
 use App\Http\Controllers\Controller;
 use App\Models\Attendance;
+use App\Models\Context;
 use App\Models\Course;
 use App\Models\CourseModule;
 use App\Models\CourseSection;
 use App\Models\Event;
 use App\Models\GradeItem;
 use App\Models\Module;
+use App\Models\Role;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 class AttendanceController extends Controller
 {
@@ -182,6 +185,7 @@ class AttendanceController extends Controller
         ->get();
 
         foreach ($sessions as $session) {
+            $session->non_format = Carbon::parse($session->sessdate)->setTimezone('Asia/Makassar')->format('Y-m-d');
             $session->date = Carbon::parse($session->sessdate)->setTimezone('Asia/Makassar')->translatedFormat('l, d F Y');
             $session->time_start = Carbon::parse($session->sessdate)->setTimezone('Asia/Makassar')->translatedFormat('H:i');
             $session->time_end = Carbon::parse($session->sessdate)->setTimezone('Asia/Makassar')->addSeconds($session->duration)->translatedFormat('H:i');
@@ -203,7 +207,6 @@ class AttendanceController extends Controller
             
             $date = Carbon::parse($request->date. ' '. $request->time_start);
 
-
             $duration = 0;
 
             if(isset($request->time_end)){
@@ -218,7 +221,7 @@ class AttendanceController extends Controller
                 'sessdate' => $date->setTimezone('Asia/Makassar')->unix(),
                 'duration' => $duration,
                 'timemodified' => time(),
-                'studentscanmark' => $request->fillable_type == 'mahasiswa' ? 1 : 0,
+                'studentscanmark' => $request->studentscanmark,
                 'allowupdatestatus' => 0,
                 'description' => '',
                 'descriptionformat' => 1,
@@ -259,6 +262,84 @@ class AttendanceController extends Controller
                 'calendarevent' => 1
             ]);
 
+            if ($request->repeat_until) {
+                $repeatUntil = Carbon::parse($request->repeat_until. ' '. $request->time_start);
+
+                $currentDate = $date->copy();
+
+                $dayOfWeek = $currentDate->dayOfWeek; 
+                if ($dayOfWeek !== $request->repeat_day) {
+                    $daysMap = [
+                        0 => 'Sunday',
+                        1 => 'Monday',
+                        2 => 'Tuesday',
+                        3 => 'Wednesday',
+                        4 => 'Thursday',
+                        5 => 'Friday',
+                        6 => 'Saturday'
+                    ];
+                    $nextDay = $daysMap[(int)$request->repeat_day];
+                    $currentDate->modify("next $nextDay");
+                }
+
+                while ($currentDate->lte($repeatUntil)) {
+                    
+                    // Tambahkan sesi baru untuk setiap hari Senin
+                    $newId = DB::connection('moodle_mysql')
+                        ->table('mdl_attendance_sessions')
+                        ->insertGetId([
+                            'attendanceid' => $attendance->id,
+                            'sessdate' => $currentDate->setTimezone('Asia/Makassar')->unix(),
+                            'duration' => $duration,
+                            'timemodified' => time(),
+                            'studentscanmark' => $request->studentscanmark,
+                            'allowupdatestatus' => 0,
+                            'description' => '',
+                            'descriptionformat' => 1,
+                            'autoassignstatus' => 0,
+                            'studentpassword' => '',
+                            'automark' => 0,
+                            'automarkcompleted' => 0,
+                            'automarkcmid' => 0,
+                            'absenteereport' => 1,
+                            'includeqrcode' => 0,
+                            'rotateqrcode' => 0,
+                            'rotateqrcodesecret' => '',
+                        ]);
+            
+                    $newEvent = Event::create([
+                        'name' => $attendance->name,
+                        'description' => '',
+                        'format' => 1,
+                        'categoryid' => 0,
+                        'courseid' => $attendance->course,
+                        'userid' => auth()->user()->id,
+                        'modulename' => 'attendance',
+                        'instance' => $newId,
+                        'type'  => 0,
+                        'eventtype' => 'attendance',
+                        'timestart' => $currentDate->unix(),
+                        'timeduration' => isset($request->time_end) ? Carbon::parse($request->time_end)->unix() : 0,
+                        'visible' => 1,
+                        'timemodified' => time(),
+                        'sequence' => 1,
+                    ]);
+            
+                    DB::connection('moodle_mysql')
+                        ->table('mdl_attendance_sessions')
+                        ->where('id', $newId)
+                        ->update([
+                            'caleventid' => $newEvent->id,
+                            'calendarevent' => 1
+                        ]);
+            
+                    // Tambahkan 1 minggu ke tanggal saat ini
+                    $currentDate->addWeek();
+                    Log::info($currentDate);
+                }
+            }
+            
+
             DB::connection('moodle_mysql')->commit();
             GlobalHelper::rebuildCourseCache($attendance->course);
 
@@ -272,6 +353,214 @@ class AttendanceController extends Controller
                 'message' => $th->getMessage()
             ], 500);
         }
+    }
+
+    public function updateSession(Request $request, $sessionId){
+
+        $date = Carbon::parse($request->date. ' '. $request->time_start);
+
+        $duration = 0;
+
+        if(isset($request->time_end)){
+            $time_end = Carbon::parse($request->date. ' '. $request->time_end);
+            $duration = $time_end->setTimezone('Asia/Makassar')->unix() - $date->setTimezone('Asia/Makassar')->unix();
+        }
+
+        DB::connection('moodle_mysql')
+        ->table('mdl_attendance_sessions')
+        ->where('id', $sessionId)
+        ->update([
+            'sessdate' => $date->setTimezone('Asia/Makassar')->unix(),
+            'duration' => $duration,
+            'timemodified' => time(),
+            'studentscanmark' => $request->studentscanmark,
+        ]);
+
+        Event::where('eventtype', 'attendance')
+        ->where('modulename', 'attendance')
+        ->where('instance', $sessionId)
+        ->update([
+            'timestart' => $date->setTimezone('Asia/Makassar')->unix(),
+            'timeduration' => isset($request->time_end)? Carbon::parse($request->time_end)->unix() : 0,
+            'timemodified' => time(),
+        ]);
+
+        return response()->json([
+            'message' => 'Session updated successfully'
+        ]);
+
+    }
+
+    public function deleteSession(Request $request){
+
+        DB::connection('moodle_mysql')->beginTransaction();
+
+        try {
+
+            foreach ($request->sessions as $session) {
+
+                Event::where('eventtype', 'attendance')
+                ->where('modulename', 'attendance')
+                ->where('instance', $session)
+                ->delete();
+
+                DB::connection('moodle_mysql')
+                ->table('mdl_attendance_sessions')
+                ->where('id', $session)
+                ->delete();
+            }
+
+            DB::connection('moodle_mysql')->commit();
+
+            return response()->json([
+                'message' => 'Session deleted successfully'
+            ]);
+
+        } catch (\Throwable $th) {
+            DB::rollBack();
+            return response()->json([
+                'message' => $th->getMessage()
+            ], 500);
+        }
+
+    }
+
+    public function getSessionDetail($shortname, $sessionId){
+
+        $course = Course::where('shortname', $shortname)->first();
+
+        $module = Module::where('name', 'attendance')->first();
+
+        $role = Role::where('shortname', 'student')->first();
+
+        $session = DB::connection('moodle_mysql')->table('mdl_attendance_sessions')
+        ->where('id', $sessionId)
+        ->first(['id', 'attendanceid', 'sessdate']);
+
+        $cm = CourseModule::where('instance', $session->attendanceid)
+        ->where('module', $module->id)
+        ->where('course', $course->id)
+        ->first();
+
+        $ctx = Context::where('contextlevel', 70)->where('instanceid', $cm->id)->first();
+
+        $attendance_statusses = DB::connection('moodle_mysql')->table('mdl_attendance_statuses')
+        ->where('attendanceid', $session->attendanceid)
+        ->get();
+
+        $attendance_log = DB::connection('moodle_mysql')->table('mdl_attendance_log')
+        ->where('sessionid', $sessionId)
+        ->get();
+
+        $roleAssignmentsQuery = DB::connection('moodle_mysql')->table('mdl_role_assignments')
+        ->select('userid')
+        ->distinct()
+        ->whereIn('contextid', explode('/', $ctx->path))
+        ->whereIn('roleid', [$role->id]);
+
+        $subQuery = DB::connection('moodle_mysql')->table('mdl_user as eu1_u')
+        ->select('eu1_u.id')
+        ->distinct()
+        ->join('mdl_user_enrolments as ej1_ue', 'ej1_ue.userid', '=', 'eu1_u.id')
+        ->join('mdl_enrol as ej1_e', function ($join) use ($course) {
+            $join->on('ej1_e.id', '=', 'ej1_ue.enrolid')
+                ->where('ej1_e.courseid', '=', $course->id);
+        })
+        ->whereExists(function ($query) use ($roleAssignmentsQuery) {
+            $query->select(DB::raw(1))
+                ->from(DB::raw('(' . $roleAssignmentsQuery->toSql() . ') as ra'))
+                ->whereRaw('ra.userid = eu1_u.id')
+                ->mergeBindings($roleAssignmentsQuery);
+        })
+        ->where('eu1_u.deleted', '=', 0)
+        ->where('eu1_u.id', '<>', 1);
+
+        $users = DB::connection('moodle_mysql')->table('mdl_user as u')
+            ->select(
+                'u.id',
+                'u.email',
+                'u.picture',
+                'u.firstname',
+                DB::raw("CONCAT(u.firstname, ' ', u.lastname) as fullname"),
+                'u.lastname',
+                'u.middlename',
+                'u.alternatename',
+                'u.imagealt',
+                'u.username',
+            )
+        ->joinSub($subQuery, 'je', 'je.id', '=', 'u.id')
+        ->where('u.deleted', '=', 0)
+        ->orderBy('u.lastname')
+        ->orderBy('u.firstname')
+        ->orderBy('u.id')
+        ->get();
+
+        foreach ($users as $user) {
+            $status = $attendance_log->where('studentid', $user->id)->first();
+            $user->status = $status->statusid ?? 0;
+            $user->note = $status->remarks ?? '';
+        }
+
+        $session->date = Carbon::parse($session->sessdate)->setTimezone('Asia/Makassar')->translatedFormat('l, d F Y');
+
+        $data = [
+            'attendance_statusses' => $attendance_statusses,
+            'students' => $users,
+            'session' => $session
+        ];
+
+        return response()->json([
+            'message' => 'Success',
+            'data' => $data
+        ], 200);
+
+    }
+
+    public function saveSessionDetail(Request $request, $attendance, $sessionId){
+
+        $session = DB::connection('moodle_mysql')->table('mdl_attendance_sessions')
+        ->where('id', $sessionId)
+        ->first(['id', 'attendanceid']);
+
+        $attendance_statusses = DB::connection('moodle_mysql')->table('mdl_attendance_statuses')
+        ->where('attendanceid', $session->attendanceid)
+        ->get();
+
+        $statusset = implode(',',$attendance_statusses->pluck('id')->toArray());
+
+        DB::connection('moodle_mysql')->beginTransaction();
+
+        try {
+            
+            foreach ($request->students as $student) {
+            
+                DB::connection('moodle_mysql')->table('mdl_attendance_log')
+                ->where('sessionid', $sessionId)
+                ->updateOrInsert([
+                    'sessionid' => $sessionId,
+                    'studentid' => $student['id'],
+                ], [
+                    'statusid' => $student['status'],
+                    'statusset' => $statusset,
+                    'remarks' => $student['note'],
+                    'timetaken' => time(),
+                ]);
+
+            }
+
+            DB::connection('moodle_mysql')->commit();
+
+            return response()->json([
+                'message' => 'Session detail saved successfully'
+            ]);
+
+        } catch (\Throwable $th) {
+            DB::connection('moodle_mysql')->rollBack();
+            return response()->json([
+                'message' => $th->getMessage()
+            ], 500);
+        }
+
     }
 
 }

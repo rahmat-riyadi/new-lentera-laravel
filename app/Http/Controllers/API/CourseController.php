@@ -11,6 +11,8 @@ use App\Models\CourseSection;
 use App\Models\Module;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 use stdClass;
 
 class CourseController extends Controller
@@ -191,4 +193,112 @@ class CourseController extends Controller
         ], 200);
 
     }
+
+    public function getParticipants(Request $request, $shortname){
+
+        $course = Course::where('shortname', $shortname)->first();
+
+        $participants = DB::connection('moodle_mysql')->table('mdl_user')
+        ->join('mdl_user_enrolments', 'mdl_user.id', '=', 'mdl_user_enrolments.userid')
+        ->join('mdl_enrol', 'mdl_user_enrolments.enrolid', '=', 'mdl_enrol.id')
+        ->where('mdl_enrol.courseid', $course->id)
+        ->where('mdl_user_enrolments.status', 0)
+        ->where('mdl_user.id', '!=', $request->user()->id)
+        ->select(
+            'mdl_user.id',
+            DB::raw('CONCAT(mdl_user.firstname, " ", mdl_user.lastname) as fullname'),
+            'mdl_user.username',
+            'mdl_user.email',
+            'mdl_user.picture'
+        )
+        ->get();
+
+        return response()->json([
+            'message' => 'Success',
+            'data' => $participants
+        ], 200);
+
+    }
+
+    public function getAllCanImportCourse(Request $request){
+
+        $course = Course::
+        whereIn('mdl_course.id', function($q) use ($request){
+            $q->select('e.courseid')
+            ->from('mdl_enrol as e')
+            ->join('mdl_user_enrolments as ue', function ($join) use ($request) {
+                $join->on('ue.enrolid', '=', 'e.id')
+                    ->where('ue.userid', '=', $request->user()->id);
+            })
+            ->join('mdl_course as c', 'c.id', '=', 'e.courseid')
+            ->where('ue.status', '=', '0')
+            ->where('e.status', '=', '0');
+        })
+        ->select(
+            'mdl_course.id',
+            'mdl_course.fullname',
+            'mdl_course.shortname',
+        )
+        ->get();
+
+        return response()->json([
+            'message' => 'Success',
+            'data' => $course
+        ], 200);
+
+    }
+
+    public function importCourse(Request $request, $shortname){
+
+        $course = Course::where('shortname', $shortname)->first();
+
+        $base_url = env('MOODLE_URL').'/webservice/rest/server.php';
+
+        $base_url = $base_url.'?wstoken='.$request->token.'&wsfunction=core_course_import_course&moodlewsrestformat=json';
+        
+        $res = Http::asForm()->post($base_url, [
+            'importfrom' => $request->course,
+            'importto' => $course->id
+        ]);
+
+        // GlobalHelper::rebuildCourseCache($course->id);
+
+        if($res->ok()){
+            return response()->json([
+                'message' => 'Success'
+            ], 200);
+        }
+
+        return response()->json([
+            'message' => $res->body()
+        ], 500);
+
+    }
+
+    public function addTopic($shortname){
+
+        $course = Course::where('shortname', $shortname)->first();
+
+        $section = CourseSection::where('course', $course->id)->max('section');
+
+        CourseSection::create([
+            'course' => $course->id,
+            'section' => $section+1,
+            'name' => '',
+            'summary' => '',
+            'summaryformat' => 1,
+            'sequence' => '',
+            'visible' => 1,
+            'availability' => '',
+            'timemodified' => time()
+        ]);
+
+        GlobalHelper::rebuildCourseCache($course->id);
+
+        return response()->json([
+            'message' => 'Success'
+        ], 200);
+
+    }
+
 }

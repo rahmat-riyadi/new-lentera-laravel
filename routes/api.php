@@ -32,12 +32,17 @@ Route::post('/login', [AuthController::class, 'login']);
 
 Route::middleware('auth.bearer')->group(function () {
 
-
     Route::group(['prefix' => 'course'], function(){
         Route::get('/', [CourseController::class, 'getAllCourse']);    
+        Route::get('/can-import', [CourseController::class, 'getAllCanImportCourse']);
         
         Route::group(['prefix' => '{shortname}'], function(){
             Route::get('/', [CourseController::class, 'getTopic']);    
+            Route::get('/participants', [CourseController::class, 'getParticipants']);
+
+            Route::get('/section', [CourseController::class, 'addTopic']);
+
+            Route::post('/import', [CourseController::class, 'importCourse']);
             
             Route::group(['prefix' => 'activity'], function(){
                 Route::post('/url', [UrlController::class, 'store']);    
@@ -65,8 +70,15 @@ Route::middleware('auth.bearer')->group(function () {
     });
 
     Route::group(['prefix' => 'attendance'], function(){
+
+        Route::put('session/{sessionId}', [AttendanceController::class, 'updateSession']);
+
         Route::get('/{attendance}', [AttendanceController::class, 'findById']);
         Route::get('/{attendance}/detail', [AttendanceController::class, 'getSession']);
+        Route::get('/{attendance}/session/{sessionId}', [AttendanceController::class, 'getSessionDetail']);
+        Route::post('/{attendance}/session/{sessionId}', [AttendanceController::class, 'saveSessionDetail']);
+        Route::post('/{attendance}/session', [AttendanceController::class, 'addSession']);
+        Route::post('/{attendance}/session/delete', [AttendanceController::class, 'deleteSession']);
         Route::put('/{attendance}', [AttendanceController::class, 'update']);
     });
 
