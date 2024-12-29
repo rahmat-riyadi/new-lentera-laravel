@@ -25,7 +25,9 @@ class FileController extends Controller
         
         return response($fileContent,200)
         ->header('Access-Control-Allow-Origin', '*')
-        ->header('Content-Type', $mimeType);
+        ->header('Content-Type', $mimeType)
+        ->header('Content-Disposition', 'attachment; filename="' . $file->filename . '"')
+        ->header('Content-Length', strlen($fileContent));
     }
 
     public function upload(Request $request){

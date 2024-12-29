@@ -313,7 +313,6 @@ class SubmissionForm extends Form
                 'sortorder' => 0,
             ]);
             
-
         }
 
     }

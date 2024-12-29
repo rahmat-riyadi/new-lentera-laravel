@@ -17,6 +17,8 @@ use App\Models\GradeGrades;
 use App\Models\GradeItem;
 use App\Models\GradingArea;
 use App\Models\Module;
+use App\Models\Resource;
+use App\Models\ResourceFile;
 use App\Models\Role;
 use App\Models\User;
 use Carbon\Carbon;
@@ -229,6 +231,288 @@ class AssignmentController extends Controller
             ], 500);
         }
         
+    }
+
+    public function detailForStudent(Assignment $assignment){
+
+        $submission = AssignmentSubmission::where('userid', auth()->user()->id)
+        ->where('assignment', $assignment->id)
+        ->first();
+
+        $online_text_plugin = $assignment->configs()
+        ->where('subtype', 'assignsubmission')
+        ->where('plugin', 'onlinetext')
+        ->get();
+
+        $file_plugin = $assignment->configs()
+        ->where('subtype', 'assignsubmission')
+        ->where('plugin', 'file')
+        ->get();
+
+        $online_text_plugin = $online_text_plugin->mapWithKeys(function($plugin){
+            return [  $plugin['name'] => $plugin['value'] ];
+        })->toArray();
+
+        $file_plugin = $file_plugin->mapWithKeys(function($plugin){
+            return [  $plugin['name'] => $plugin['value'] ];
+        })->toArray();
+
+        if((boolean)$online_text_plugin['enabled']){
+            $assignment->type = 'onlinetext';    
+        }
+
+        if((boolean)$file_plugin['enabled']){
+            $assignment->type = 'file';    
+            $assignment->max_files = $file_plugin['maxfilesubmissions'];
+        }
+
+        $assignment->formatted_duedate = Carbon::parse($assignment->duedate)->timezone('Asia/Makassar')->translatedFormat('d F Y, H:i');
+
+        if(!$submission){
+            $assignment->remaining = Carbon::parse($assignment->duedate)->diff()->format('%H Jam %i Menit');
+            if(Carbon::now()->gt(Carbon::parse($assignment->duedate))){
+                $assignment->remaining = 'Terlambat ' . $assignment->remaining;
+            } 
+            $assignment->status = 'Belum Dikumpulkan';
+
+        }
+
+        if($submission){
+
+            if(Carbon::parse($assignment->duedate)->gt(Carbon::parse($submission->timemodified))){
+                $assignment->status = 'Dikumpulkan';
+                $assignment->remaining ='Dikumpulkan lebih awal '. Carbon::parse($assignment->duedate)->diff()->format('%H Jam %i Menit');
+            } else {
+                $assignment->remaining ='Terlambat '. Carbon::parse($assignment->duedate)->diff()->format('%H Jam %i Menit');
+                $assignment->status = 'Terlambat Dikumpulkan';
+            }
+
+            if($assignment->type == 'file'){
+                $submission->files = DB::connection('moodle_mysql')->table('mdl_files')
+                // ->where('contextid', $submission->contextid)
+                ->where('component', 'assignsubmission_file')
+                ->where('filearea', 'submission_files')
+                ->where('itemid', $submission->id)
+                ->where('filename', '!=', '.')
+                ->orderBy('id')
+                ->get();
+    
+                $submission->files = $submission->files->map(function($e){
+                    $e->id = $e->id;
+                    $e->name = $e->filename;
+                    $e->file = "/preview/file/$e->id/$e->filename";
+                    $e->size = number_format($e->filesize / 1024 / 1024, 2);
+                    $e->itemid = $e->itemid;
+                    return $e;
+                })->toArray();   
+            }
+
+            if($assignment->type == 'onlinetext'){
+                $submission->url = DB::connection('moodle_mysql')->table('mdl_assignsubmission_onlinetext')
+                ->where('submission', $submission->id)
+                ->where('assignment', $assignment->id)
+                ->first()->onlinetext;
+            }
+
+        }
+
+        return response()->json([
+            'message' => 'Success',
+            'data' => [
+                'assignment' => $assignment,
+                'submission' => $submission,
+            ]
+        ], 200);
+
+    }
+
+    public function submitSubmission(Request $request, Assignment $assignment){
+
+        $online_text_plugin = $assignment->configs()
+        ->where('subtype', 'assignsubmission')
+        ->where('plugin', 'onlinetext')
+        ->where('name', 'enabled')
+        ->where('value', 1)
+        ->first();
+
+        $file_plugin = $assignment->configs()
+        ->where('subtype', 'assignsubmission')
+        ->where('plugin', 'file')
+        ->where('name', 'enabled')
+        ->where('value', 1)
+        ->first();
+
+        if($online_text_plugin){
+            $submission_type = 'onlinetext';
+        } 
+
+        if($file_plugin){
+            $submission_type = 'file';
+            $submission_file_number = $assignment->configs()
+            ->where('subtype', 'assignsubmission')
+            ->where('plugin', 'file')
+            ->where('name', 'maxfilesubmissions')
+            ->first('value')->value;
+        }
+
+        $submission = AssignmentSubmission::where('userid', auth()->user()->id)
+        ->where('assignment', $assignment->id)
+        ->orderBy('id')
+        ->first();
+
+        DB::connection('moodle_mysql')->beginTransaction();
+
+        try {
+
+            DB::connection('moodle_mysql')->table('mdl_assign_submission')
+            ->updateOrInsert(
+                [
+                    'assignment' => $assignment->id,
+                    'userid' => auth()->user()->id,
+                ],[
+                    'assignment' => $assignment->id, 
+                    'userid' => auth()->user()->id,
+                    'status' => 'submitted',
+                    'timecreated' => time(),
+                    'timemodified' => time(),
+                    'groupid' => 0,
+                    'attemptnumber' => 0,
+                    'latest' => 1,
+                    'timestarted' => null,
+                ]
+            );
+
+            $submission = AssignmentSubmission::where('userid', auth()->user()->id)
+            ->where('assignment', $assignment->id)->first();
+
+            DB::connection('moodle_mysql')->table('mdl_assignsubmission_file')
+            ->updateOrInsert(
+                [
+                    'assignment' => $assignment->id,
+                    'submission' => $submission->id
+                ],[
+                    'numfiles' => count($request->files),
+                ]
+            );
+
+            $mod_id = Module::where('name', 'assign')->first('id');
+
+            $cm = CourseModule::where("module", $mod_id->id)
+            ->where('instance', $assignment->id)
+            ->first();
+
+            $context = Context::where('instanceid', $cm->id)
+            ->where('contextlevel', 70)
+            ->first();
+
+            if($submission_type == 'file'){
+                foreach($request->get('files') as $i => $files){
+
+                    if(!isset($files['itemid'])){
+                        continue;
+                    }
+
+                    $user_ctx = Context::where('instanceid', $request->user()->id)
+                    ->where('contextlevel', 30)
+                    ->first();
+
+                    $get_files = ResourceFile::where('component', 'user')
+                    ->where('filearea', 'draft')
+                    ->where('contextid', $user_ctx->id)
+                    ->where('itemid', $files['itemid'])
+                    ->get();
+
+                    ResourceFile::create([
+                        'contenthash' => $get_files[0]->contenthash,
+                        'pathnamehash' => GlobalHelper::get_pathname_hash($get_files[0]->contextid, 'assignsubmission_file', 'submission_files', $get_files[0]->itemid, '/', $get_files[0]->filename),
+                        'contextid' => $context->id,
+                        'component' => 'assignsubmission_file',
+                        'filearea' => 'submission_files',
+                        'itemid' => $submission->id,
+                        'filepath' => '/',
+                        'filename' => $get_files[0]->filename,
+                        'userid' => $request->user()->id,
+                        'filesize' => $get_files[0]->filesize,
+                        'mimetype' => $get_files[0]->mimetype,
+                        'status' => 0,
+                        'source' => $get_files[0]->filename,
+                        'author' => $get_files[0]->author,
+                        'license' => $get_files[0]->license,
+                        'timecreated' => $get_files[0]->timecreated,
+                        'timemodified' => $get_files[0]->timemodified,
+                        'sortorder' => 1,
+                        'referencefileid' => null,
+                    ]);
+
+                    ResourceFile::create([
+                        'contenthash' => $get_files[1]->contenthash,
+                        'pathnamehash' => GlobalHelper::get_pathname_hash($get_files[1]->contextid,'assignsubmission_file', 'submission_files', $get_files[1]->itemid, '/', $get_files[1]->filename),
+                        'contextid' => $context->id,
+                        'component' => 'assignsubmission_file',
+                        'filearea' => 'submission_files',
+                        'itemid' => $submission->id,
+                        'filepath' => '/',
+                        'filename' => $get_files[1]->filename,
+                        'userid' => $request->user()->id,
+                        'filesize' => $get_files[1]->filesize,
+                        'mimetype' => $get_files[1]->mimetype,
+                        'timecreated' => $get_files[1]->timecreated,
+                        'timemodified' => time(),
+                    ]);
+                    
+                }   
+            }
+
+            if($submission_type == 'onlinetext'){
+                DB::connection('moodle_mysql')->table('mdl_assignsubmission_onlinetext')
+                ->updateOrInsert(
+                    [
+                        'assignment' => $assignment->id,
+                        'submission' => $submission->id
+                    ],[
+                        'onlinetext' => $request->onlinetext,
+                    ]
+                );
+            }
+
+            DB::connection('moodle_mysql')->commit();
+
+            if($submission_type == 'file'){
+
+                $newFiles = DB::connection('moodle_mysql')->table('mdl_files')
+                ->where('component', 'assignsubmission_file')
+                ->where('filearea', 'submission_files')
+                ->where('itemid', $submission->id)
+                ->where('filename', '!=', '.')
+                ->orderBy('id')
+                ->get();
+
+                $newFiles = $newFiles->map(function($e){
+                    $e->id = $e->id;
+                    $e->name = $e->filename;
+                    $e->file = "/preview/file/$e->id/$e->filename";
+                    $e->size = number_format($e->filesize / 1024 / 1024, 2);
+                    $e->itemid = $e->itemid;
+                    return $e;
+                })->toArray(); 
+            }
+
+            return response()->json([
+                'message' => 'Success',
+                'data' => [
+                    'files' => $newFiles ?? null,
+                    'url' => $request->onlinetext ?? null
+                ]
+            ], 200);
+
+        } catch (\Throwable $th) {
+            DB::connection('moodle_mysql')->rollBack();
+            return response()->json([
+                'message' => $th->getMessage(),
+                'data' => null
+            ], 500);
+        }
+
     }
 
     public function store(Request $request, $shortname){
@@ -587,6 +871,44 @@ class AssignmentController extends Controller
 
     }
 
+    public function deleteFileSubmission($id){
 
+        DB::connection('moodle_mysql')->beginTransaction();
+
+        try {
+
+            $file = ResourceFile::where('id', $id)->first();
+
+            $draftFile = ResourceFile::where('contenthash', $file->contenthash)
+            ->where('component', 'user')
+            ->where('filearea', 'draft')
+            ->first();
+
+            $itemId = $draftFile->itemid;
+
+            ResourceFile::where('itemid', $itemId)
+            ->where('component', 'user')
+            ->where('filearea', 'draft')
+            ->delete();
+
+            ResourceFile::where('id', $id+1)->delete();
+            $file->delete();
+
+            DB::connection('moodle_mysql')->commit();
+
+            return response()->json([
+                'message' => 'Success',
+                'data' => null
+            ], 200);
+
+        } catch (\Throwable $th) {
+            DB::connection('moodle_mysql')->rollBack();
+            return response()->json([
+                'message' => $th->getMessage(),
+                'data' => null
+            ], 500);
+        }
+        
+    }
 
 }

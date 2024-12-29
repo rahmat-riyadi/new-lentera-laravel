@@ -86,6 +86,13 @@ Route::middleware('auth.bearer')->group(function () {
         Route::get('/{assignment}', [AssignmentController::class, 'findById']);
         Route::get('/grade/{assignmentSubmission}', [AssignmentController::class, 'getDetailGrading']);
         Route::put('/{assignment}', [AssignmentController::class, 'update']);
+
+        Route::group(['prefix' => 'student'], function(){
+            Route::get('/{assignment}', [AssignmentController::class, 'detailForStudent']);
+            Route::post('/{assignment}', [AssignmentController::class, 'submitSubmission']);
+            Route::delete('/submission/file/{id}/', [AssignmentController::class, 'deleteFileSubmission']);
+        });
+
     });
 
     Route::group(['prefix' => 'quiz'], function(){
@@ -114,11 +121,9 @@ Route::middleware('auth.bearer')->group(function () {
         Route::delete('/file/{id}', [ActivityFileController::class, 'deleteFile']);
     });
    
-    Route::get('/preview/file/{id}/{fileName}', [FileController::class, 'view']);
-
-
-    
 });
+
+Route::get('/preview/file/{id}/{fileName}', [FileController::class, 'view']);
 
 Route::post('/file', [FileController::class, 'upload']);
 
