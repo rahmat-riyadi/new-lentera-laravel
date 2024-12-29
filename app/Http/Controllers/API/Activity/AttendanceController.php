@@ -177,18 +177,48 @@ class AttendanceController extends Controller
 
     }
 
-    public function getSession(Attendance $attendance){
+    public function getSession(Request $request,Attendance $attendance){
 
         $sessions = DB::connection('moodle_mysql')
         ->table('mdl_attendance_sessions')
         ->where('attendanceid', $attendance->id)
         ->get();
 
+        $ctx = Context::where('contextlevel', 50)->where('instanceid', $attendance->course)->first();
+        $data = DB::connection('moodle_mysql')->table('mdl_role_assignments as ra')
+        ->join('mdl_role as r', 'r.id', '=', 'ra.roleid')
+        ->where('ra.contextid', $ctx->id)
+        ->where('ra.userid', $request->user()->id)
+        ->select(
+            'r.shortname as role',
+        )
+        ->first();
+
         foreach ($sessions as $session) {
             $session->non_format = Carbon::parse($session->sessdate)->setTimezone('Asia/Makassar')->format('Y-m-d');
             $session->date = Carbon::parse($session->sessdate)->setTimezone('Asia/Makassar')->translatedFormat('l, d F Y');
             $session->time_start = Carbon::parse($session->sessdate)->setTimezone('Asia/Makassar')->translatedFormat('H:i');
             $session->time_end = Carbon::parse($session->sessdate)->setTimezone('Asia/Makassar')->addSeconds($session->duration)->translatedFormat('H:i');
+
+            $start = Carbon::parse($session->sessdate);
+            $end = Carbon::parse($session->sessdate)->addSeconds($session->duration);
+            $now = Carbon::now();
+
+            if($now->between($start, $end)){
+                $session->status = 'active';
+            } else {
+                $session->status = 'closed';
+            }
+
+            if($data->role == 'student'){
+                $session->student_status = DB::connection('moodle_mysql')->table('mdl_attendance_log')
+                ->where('mdl_attendance_log.sessionid', $session->id)
+                ->where('mdl_attendance_log.studentid', auth()->user()->id)
+                ->join('mdl_attendance_statuses', 'mdl_attendance_statuses.id', '=', 'mdl_attendance_log.statusid')
+                ->where('mdl_attendance_statuses.attendanceid', $attendance->id)
+                ->first(['mdl_attendance_log.statusid', 'mdl_attendance_statuses.description']);
+            }
+
         }
 
         return response()->json([
@@ -405,6 +435,11 @@ class AttendanceController extends Controller
                 ->delete();
 
                 DB::connection('moodle_mysql')
+                ->table('mdl_attendance_log')
+                ->where('sessionid', $session)
+                ->delete();
+
+                DB::connection('moodle_mysql')
                 ->table('mdl_attendance_sessions')
                 ->where('id', $session)
                 ->delete();
@@ -560,6 +595,37 @@ class AttendanceController extends Controller
                 'message' => $th->getMessage()
             ], 500);
         }
+
+    }
+
+    public function setStudentAttendance(Request $request){
+
+
+        $session = DB::connection('moodle_mysql')->table('mdl_attendance_sessions')
+        ->where('id', $request->sessionid)
+        ->first(['id', 'attendanceid']);
+
+        $attendance_statusses = DB::connection('moodle_mysql')->table('mdl_attendance_statuses')
+        ->where('attendanceid', $session->attendanceid)
+        ->get();
+
+        $curr_status = $attendance_statusses->firstWhere('description', $request->status);
+
+        DB::connection('moodle_mysql')->table('mdl_attendance_log')
+        ->updateOrInsert([
+            'sessionid' => $request->sessionid,
+            'studentid' => $request->user()->id,
+        ], [
+            'statusid' => $curr_status->id,
+            'timetaken' => time(),
+            'statusset' => implode(',', $attendance_statusses->pluck('id')->toArray()),
+            'remarks' => 'self-recorded',
+        ]);
+
+        return response()->json([
+            'message' => 'Attendance set successfully'
+        ]);
+
 
     }
 

@@ -783,6 +783,10 @@ class QuizController extends Controller
                 ]);
             }
 
+            $quiz->update([
+                'sumgrades' => DB::raw("COALESCE((SELECT SUM(maxmark) FROM mdl_quiz_slots WHERE quizid = mdl_quiz.id), 0)")
+            ]);
+
             DB::connection('moodle_mysql')->commit();
             return response()->json([
                 'message' => 'Questions added to quiz successfully',
@@ -917,6 +921,10 @@ class QuizController extends Controller
                     ]);
                 }
             }
+
+            $quiz->update([
+                'sumgrades' => DB::raw("COALESCE((SELECT SUM(maxmark) FROM mdl_quiz_slots WHERE quizid = mdl_quiz.id), 0)")
+            ]);
 
             DB::connection('moodle_mysql')->commit();
         } catch (\Throwable $th) {

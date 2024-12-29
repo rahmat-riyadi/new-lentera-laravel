@@ -71,6 +71,8 @@ Route::middleware('auth.bearer')->group(function () {
 
     Route::group(['prefix' => 'attendance'], function(){
 
+        Route::post('/submit-student', [AttendanceController::class, 'setStudentAttendance']);
+
         Route::put('session/{sessionId}', [AttendanceController::class, 'updateSession']);
 
         Route::get('/{attendance}', [AttendanceController::class, 'findById']);
@@ -78,7 +80,7 @@ Route::middleware('auth.bearer')->group(function () {
         Route::get('/{attendance}/session/{sessionId}', [AttendanceController::class, 'getSessionDetail']);
         Route::post('/{attendance}/session/{sessionId}', [AttendanceController::class, 'saveSessionDetail']);
         Route::post('/{attendance}/session', [AttendanceController::class, 'addSession']);
-        Route::post('/{attendance}/session/delete', [AttendanceController::class, 'deleteSession']);
+        Route::put('/{attendance}/session/delete', [AttendanceController::class, 'deleteSession']);
         Route::put('/{attendance}', [AttendanceController::class, 'update']);
     });
 
