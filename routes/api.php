@@ -100,6 +100,13 @@ Route::middleware('auth.bearer')->group(function () {
     Route::group(['prefix' => 'quiz'], function(){
         Route::get('/{quiz}', [QuizController::class, 'findById']);
 
+        Route::group(['prefix' => '{quiz}/student'], function(){
+            Route::get('/start-attempt', [QuizController::class, 'studentAttemptingQuiz']);
+            Route::get('/attempt', [QuizController::class, 'getStudentAnswerStateData']);
+            Route::post('/save-attempt', [QuizController::class, 'saveStudentState']);
+            // Route::post('/{quiz}', [QuizController::class, 'submitQuiz']);
+        });
+
         Route::group(['prefix' => '{shortname}/questions'], function(){
             Route::get('/', [QuizController::class, 'getBankQuestion']);
             Route::get('/{question}', [QuizController::class, 'getQuestionById']);

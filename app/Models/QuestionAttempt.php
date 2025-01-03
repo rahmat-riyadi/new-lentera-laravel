@@ -5,20 +5,21 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
-class QuizAttempt extends Model
+class QuestionAttempt extends Model
 {
     use HasFactory;
 
     protected $guarded = ['id'];
 
-    protected $table = 'mdl_quiz_attempts';
+    protected $table = 'mdl_question_attempts';
 
     protected $connection = 'moodle_mysql';
 
     public $timestamps = false;
 
-    public function questionUsage()
+    public function attemptSteps()
     {
-        return $this->belongsTo(QuestionUsage::class, 'uniqueid', 'id');
+        return $this->hasMany(QuestionAttemptStep::class, 'questionattemptid', 'id');
     }
+
 }

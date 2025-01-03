@@ -18,9 +18,12 @@ use App\Models\QtypeEssaiOption;
 use App\Models\QtypeMultiChoiceOption;
 use App\Models\Question;
 use App\Models\QuestionAnswer;
+use App\Models\QuestionAttempt;
+use App\Models\QuestionAttemptStep;
 use App\Models\QuestionBankEntry;
 use App\Models\QuestionRefenrence;
 use App\Models\QuestionTrueFalse;
+use App\Models\QuestionUsage;
 use App\Models\QuestionVersion;
 use App\Models\Quiz;
 use App\Models\QuizAttempt;
@@ -29,6 +32,7 @@ use App\Models\QuizSlot;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 class QuizController extends Controller
 {
@@ -1106,5 +1110,527 @@ class QuizController extends Controller
 
 
     }
+
+    public function studentAttemptingQuiz(Request $request, Quiz $quiz){
+
+        DB::connection('moodle_mysql')->beginTransaction();
+
+        $cm = CourseModule::where('instance', $quiz->id)
+        ->where('module', Module::where('name', 'quiz')->first()->id)
+        ->where('course', $quiz->course)
+        ->first();
+
+        $ctx = Context::where('instanceid', $cm->id)
+        ->where('contextlevel', 70)
+        ->first();
+
+        $questions = DB::connection('moodle_mysql')->table('mdl_quiz_slots as slot')
+        ->select([
+            'slot.slot',
+            'slot.id as slotid',
+            'slot.page',
+            'slot.maxmark',
+            'slot.displaynumber',
+            'slot.requireprevious',
+            'qsr.filtercondition',
+            'qv.status',
+            'qv.id as versionid',
+            'qv.version',
+            'qr.version as requestedversion',
+            'qv.questionbankentryid',
+            'q.id as questionid',
+            'q.*',
+            'qc.id as category',
+            DB::raw('COALESCE(qc.contextid, qsr.questionscontextid) as contextid'),
+        ])
+        ->leftJoin('mdl_question_references as qr', function ($join) use ($ctx) {
+            $join->on('qr.itemid', '=', 'slot.id')
+                ->where('qr.usingcontextid', '=', $ctx->id)
+                ->where('qr.component', '=', 'mod_quiz')
+                ->where('qr.questionarea', '=', 'slot');
+        })
+        ->leftJoin('mdl_question_bank_entries as qbe', 'qbe.id', '=', 'qr.questionbankentryid')
+        ->leftJoin(DB::raw("
+            (
+                SELECT 
+                    lv.questionbankentryid,
+                    MAX(CASE WHEN lv.status <> 'draft' THEN lv.version END) AS usableversion,
+                    MAX(lv.version) AS anyversion
+                FROM mdl_quiz_slots lslot
+                JOIN mdl_question_references lqr 
+                    ON lqr.usingcontextid = {$ctx->id} 
+                    AND lqr.component = 'mod_quiz'
+                    AND lqr.questionarea = 'slot'
+                    AND lqr.itemid = lslot.id
+                JOIN mdl_question_versions lv 
+                    ON lv.questionbankentryid = lqr.questionbankentryid
+                WHERE lslot.quizid = {$quiz->id}
+                AND lqr.version IS NULL
+                GROUP BY lv.questionbankentryid
+            ) as latestversions
+        "), 'latestversions.questionbankentryid', '=', 'qr.questionbankentryid')
+        ->leftJoin('mdl_question_versions as qv', function ($join) {
+            $join->on('qv.questionbankentryid', '=', 'qbe.id')
+                ->whereRaw('qv.version = COALESCE(qr.version, latestversions.usableversion, latestversions.anyversion)');
+        })
+        ->leftJoin('mdl_question_categories as qc', 'qc.id', '=', 'qbe.questioncategoryid')
+        ->leftJoin('mdl_question as q', 'q.id', '=', 'qv.questionid')
+        ->leftJoin('mdl_question_set_references as qsr', function ($join) use ($ctx) {
+            $join->on('qsr.itemid', '=', 'slot.id')
+                ->where('qsr.usingcontextid', '=', $ctx->id)
+                ->where('qsr.component', '=', 'mod_quiz')
+                ->where('qsr.questionarea', '=', 'slot');
+        })
+        ->where('slot.quizid', '=', $quiz->id)
+        ->orderBy('slot.slot')
+        ->get();
+
+        try {
+
+            $quizAttempt = DB::connection('moodle_mysql')->table('mdl_quiz_attempts')
+            ->where('quiz', $quiz->id)
+            ->where('userid', $request->user()->id)
+            ->first();
+
+            if(!$quizAttempt){
+
+                Log::info("sfs");
+
+                $questionUsage = DB::connection('moodle_mysql')->table('mdl_question_usages')
+                ->insertGetId([
+                    'contextid' => $ctx->id,
+                    'component' => 'mod_quiz',
+                    'preferredbehaviour' => 'deferredfeedback',
+                ]);
+
+                $data_question_attempt_step_data = [];
+
+                foreach($questions->toArray() as $i => $question){
+
+                    $answers = QuestionAnswer::where('question', $question->id)
+                    ->get();
+
+                    $questionAppend = $answers->map(fn($item, $i) => ($i == 0 ? ': ' : '; ') . $item->answer)->implode("\n");
+
+                    $trueAnswer = $answers->firstWhere('fraction', 1);
+
+                    $questionAttempt = DB::connection('moodle_mysql')->table('mdl_question_attempts')
+                    ->insertGetId([
+                        'questionusageid' => $questionUsage,
+                        'slot' => $question->slot,
+                        'behaviour' => $question->qtype == 'essay' ? 'manualgraded' : 'deferredfeedback',
+                        'questionid' => $question->questionid,
+                        'variant' => 1,
+                        'maxmark' => 1,
+                        'minfraction' => 0,
+                        'maxfraction' => 1,
+                        'flagged' => 0,
+                        'questionsummary' => strip_tags($question->questiontext."\r\n".$questionAppend)."\n",
+                        'rightanswer' => $question->qtype == 'essay' ? null : strip_tags($trueAnswer->answer)."\n",
+                        'responsesummary' => '',
+                        'timemodified' => now()->timestamp,
+                    ]);
+
+                    $attempStepId = DB::connection('moodle_mysql')->table('mdl_question_attempt_steps')
+                    ->insertGetId([
+                        'questionattemptid' => $questionAttempt,
+                        'sequencenumber' => 0,
+                        'state' => 'todo',
+                        'fraction' => null,
+                        'timecreated' => now()->timestamp,
+                        'userid' => $request->user()->id,
+                    ]);
+
+                    if($question->qtype != 'essay'){
+                        $data_question_attempt_step_data[] = [
+                            'attemptstepid' => $attempStepId,
+                            'name' => '_order',
+                            'value' => $answers->pluck('id')->implode(','),
+                        ];
+                    }
+
+                }
+
+                DB::connection('moodle_mysql')->table('mdl_question_attempt_step_data')
+                ->insert($data_question_attempt_step_data);
+
+                $layout = [];
+                $count = 0;
+
+                foreach($questions as $question){
+                    $layout[] = $question->slot; // Tambahkan pertanyaan
+                    $count++;
+
+                    // Tambahkan "0" setelah setiap $questionsperpage
+                    if ($count === $quiz->questionsperpage) {
+                        $layout[] = 0;
+                        $count = 0;
+                    }
+                }
+
+                $newAttemptId = DB::connection('moodle_mysql')->table('mdl_quiz_attempts')
+                ->insertGetId([
+                    'quiz' => $quiz->id,
+                    'userid' => $request->user()->id,
+                    'attempt' => 1,
+                    'uniqueid' => $questionUsage,
+                    'layout' => implode(',', $layout),
+                    'currentpage' => 0,
+                    'preview' => 0,
+                    'state' => 'inprogress',
+                    'timestart' => now()->timestamp,
+                    'timefinish' => 0,
+                    'timemodified' => now()->timestamp,
+                    'timemodifiedoffline' => 0,
+                    // 'timecheckstate' => null,
+                    // 'sumgrades' => null,
+                ]);
+            } else {
+                $questionUsage = QuestionUsage::where('id', $quizAttempt->uniqueid)->first();   
+            }
+
+            DB::connection('moodle_mysql')->commit();
+
+            $questions = DB::connection('moodle_mysql')->table('mdl_quiz_slots as qs')
+            ->select([
+                'qs.slot as question_order',
+                'qs.page as question_page',
+                'qs.maxmark as max_mark',
+                'q.id as question_id',
+                'q.name as question_name',
+                'q.questiontext as question_text',
+                'q.qtype as question_type',
+                'qc.name as category_name',
+                'qc.contextid as category_context_id',
+            ])
+            ->join('mdl_question_references as qr', function ($join) {
+                $join->on('qr.itemid', '=', 'qs.id')
+                    ->where('qr.component', '=', 'mod_quiz')
+                    ->where('qr.questionarea', '=', 'slot');
+            })
+            ->join('mdl_question_bank_entries as qbe', 'qbe.id', '=', 'qr.questionbankentryid')
+            ->join('mdl_question_versions as qv', function ($join) {
+                $join->on('qv.questionbankentryid', '=', 'qbe.id')
+                    ->whereRaw('qv.version = COALESCE(qr.version, (SELECT MAX(version) FROM mdl_question_versions WHERE questionbankentryid = qbe.id))');
+            })
+            ->join('mdl_question as q', 'q.id', '=', 'qv.questionid')
+            ->join('mdl_question_categories as qc', 'qc.id', '=', 'qbe.questioncategoryid')
+            ->where('qs.quizid', '=', $quiz->id)
+            ->orderBy('qs.slot')
+            ->get();
+
+            $questionState = DB::connection('moodle_mysql')->table('mdl_question_usages as quba')
+            ->select(
+                'quba.id as qubaid',
+                'quba.contextid',
+                'quba.component',
+                'quba.preferredbehaviour',
+                'qa.id as questionattemptid',
+                'qa.questionusageid',
+                'qa.slot',
+                'qa.behaviour',
+                'qa.questionid',
+                'qa.variant',
+                'qa.maxmark',
+                'qa.minfraction',
+                'qa.maxfraction',
+                'qa.flagged',
+                'qa.questionsummary',
+                'qa.rightanswer',
+                'qa.responsesummary',
+                'qa.timemodified',
+                'qas.id as attemptstepid',
+                'qas.sequencenumber',
+                'qas.state',
+                'qas.fraction',
+                'qas.timecreated',
+                'qas.userid',
+                'qasd.name',
+                'qasd.value'
+            )
+            ->leftJoin('mdl_question_attempts as qa', 'qa.questionusageid', '=', 'quba.id')
+            ->leftJoin('mdl_question_attempt_steps as qas', 'qas.questionattemptid', '=', 'qa.id')
+            ->leftJoin('mdl_question_attempt_step_data as qasd', 'qasd.attemptstepid', '=', 'qas.id')
+            ->where('quba.id', '=', $questionUsage->id)
+            ->orderBy('qa.slot')
+            ->orderBy('qas.sequencenumber')
+            ->get();
+
+            foreach($questions as $question){
+
+                $question->last_state = $questionState->filter(fn($qs) => $qs->questionid == $question->question_id)
+                ->sortByDesc('sequencenumber')
+                ->select(
+                    'state','name','value','qubaid'
+                )
+                ->first();
+
+                $question->answers = QuestionAnswer::where('question', $question->question_id)->get()
+                ->map(function($item){
+                    return [
+                        'answer' => $item->answer,
+                        'fraction' => $item->fraction,
+                        'feedback' => $item->feedback,
+                        'feedbackformat' => $item->feedbackformat,
+                    ];
+                });
+            }
+
+            $quizInstance = new \stdClass();
+
+            $quizInstance->id = $quiz->id;
+            $quizInstance->name = $quiz->name;
+            $quizInstance->questionsperpage = $quiz->questionsperpage;
+            $quizInstance->current_attempt_id = $quizAttempt ? $quizAttempt->id : $newAttemptId;
+            $quizInstance->question_usage_id = $questionUsage->id;
+
+            return response()->json([
+                'message' => 'Success',
+                'data' => [
+                    'quiz' => $quizInstance,
+                    'questions' => $questions
+                ]
+            ]);
+
+        } catch (\Throwable $th) {
+            DB::connection('moodle_mysql')->rollBack();
+            return response()->json([
+                'message' => $th->getMessage(),
+                'data' => null
+            ], 500);
+        }
+
+    }
+
+    public function saveStudentState(Request $request){
+        try {
+            DB::connection('moodle_mysql')->beginTransaction();
+
+            foreach($request->questions as $question){
+    
+                $questionAttempt = QuestionAttempt::where('questionusageid', $question['last_state']['qubaid'])
+                ->where('questionid', $question['question_id'])
+                ->first();
+
+                $questionAttemptStepSequence = QuestionAttemptStep::where('questionattemptid', $questionAttempt->id)
+                ->max('sequencenumber');
+
+                $newQuestionAttemptStepId =  DB::connection('moodle_mysql')->table('mdl_question_attempt_steps')
+                ->insertGetId([
+                    'questionattemptid' => $questionAttempt->id,
+                    'sequencenumber' => $questionAttemptStepSequence + 1,
+                    'state' => $question['last_state']['state'],
+                    'userid' => $request->user()->id,
+                    'timecreated' => now()->timestamp,
+                ]);
+
+                DB::connection('moodle_mysql')->table('mdl_question_attempt_step_data')
+                ->insert([
+                    'attemptstepid' => $newQuestionAttemptStepId,
+                    'name' => 'answer',
+                    'value' => $question['last_state']['value'],
+                ]);
+
+                if($question['question_type'] == 'essay'){
+                    DB::connection('moodle_mysql')->table('mdl_question_attempt_step_data')
+                    ->insert([
+                        'attemptstepid' => $newQuestionAttemptStepId,
+                        'name' => 'answerformat',
+                        'value' => '1',
+                    ]);
+                } 
+            }
+
+            DB::connection('moodle_mysql')->commit();
+
+            return response()->json([
+                'message' => 'Success save student state',
+                'data' => null
+            ]);
+
+        } catch (\Throwable $th) {
+            DB::connection('moodle_mysql')->rollBack();
+            return response()->json([
+                'message' => $th->getMessage(),
+                'data' => null
+            ], 500);
+        }
+    }
+
+    public function finishStudentAttempt(Request $request, Quiz $quiz){
+
+        try {
+            DB::connection('moodle_mysql')->beginTransaction();
+
+            $questionState = DB::connection('moodle_mysql')->table('mdl_question_usages as quba')
+            ->select(
+                'quba.id as qubaid',
+                'quba.contextid',
+                'quba.component',
+                'quba.preferredbehaviour',
+                'qa.id as questionattemptid',
+                'qa.questionusageid',
+                'qa.slot',
+                'qa.behaviour',
+                'qa.questionid',
+                'qa.variant',
+                'qa.maxmark',
+                'qa.minfraction',
+                'qa.maxfraction',
+                'qa.flagged',
+                'qa.questionsummary',
+                'qa.rightanswer',
+                'qa.responsesummary',
+                'qa.timemodified',
+                'qas.id as attemptstepid',
+                'qas.sequencenumber',
+                'qas.state',
+                'qas.fraction',
+                'qas.timecreated',
+                'qas.userid',
+                'qasd.name',
+                'qasd.value'
+            )
+            ->leftJoin('mdl_question_attempts as qa', 'qa.questionusageid', '=', 'quba.id')
+            ->leftJoin('mdl_question_attempt_steps as qas', 'qas.questionattemptid', '=', 'qa.id')
+            ->leftJoin('mdl_question_attempt_step_data as qasd', 'qasd.attemptstepid', '=', 'qas.id')
+            ->where('quba.id', '=', $request->quiz['question_usage_id'])
+            ->orderBy('qa.slot')
+            ->orderBy('qas.sequencenumber')
+            ->get();
+
+            $question_attempt_steps_id = [];
+
+            foreach($request->questions as $question){
+
+                $questionState = $questionState->filter(fn($qs) => $qs->questionid == $question['question_id'])
+                ->where('name', 'answer')
+                ->sortByDesc('sequencenumber')
+                ->first();
+
+                if($questionState->behaviour == 'manualgraded'){
+                    $state = 'needsgrading';
+                }
+
+                if($questionState->behaviour == 'deferredfeedback'){
+
+                    $optionsString = substr($questionState->questionsummary, strpos($questionState->questionsummary, ':') + 1);
+                    $options = array_map('trim', explode(';', $optionsString));
+
+                    $userAnswer = $options[$questionState->value - 1] ?? null; 
+
+                    if($userAnswer == $questionState->rightanswer){
+                        $state = 'gradedwrong';
+                    } else {
+                        $state = 'gradedright';
+                    }
+
+                }
+
+                $question_attempt_steps_id[] = DB::connection('moodle_mysql')->table('mdl_question_attempt_steps')
+                ->insertGetId([
+                    'questionattemptid' => $questionState->questionattemptid,
+                    'sequencenumber' => $questionState->sequencenumber + 1,
+                    'state' => $state,
+                    'fraction' => $state == 'needsgrading' ? null : ($state == 'gradedright' ? 1 : 0),
+                    'timecreated' => now()->timestamp,
+                    'userid' => $request->user()->id,
+                ]);
+
+            }
+
+            foreach($questionState as $qs){
+                DB::connection('moodle_mysql')->table('mdl_question_attempts')
+                ->where('id', $qs->questionattemptid)
+                ->update([
+                    'timemodified' => now()->timestamp,
+                ]);
+            }
+
+            $questionAttemptStepsData = collect($question_attempt_steps_id)
+            ->map(function($item){
+                return [
+                    'attemptstepid' => $item,
+                    'name' => '-finish',
+                    'value' => 1,
+                ];
+            });
+
+            DB::connection('moodle_mysql')->table('mdl_question_attempt_step_data')
+            ->insert($questionAttemptStepsData->toArray());
+
+            DB::connection('moodle_mysql')->table('mdl_quiz_attempts')
+            ->where('id', $request->quiz['current_attempt_id'])
+            ->update([
+                'state' => 'finished',
+                'timefinish' => now()->timestamp,
+                'timemodified' => now()->timestamp,
+            ]);
+
+            DB::connection('moodle_mysql')->commit();
+
+            return response()->json([
+                'message' => 'Success finish student attempt',
+                'data' => null
+            ]);
+
+        } catch (\Throwable $th) {
+            DB::connection('moodle_mysql')->rollBack();
+            return response()->json([
+                'message' => $th->getMessage(),
+                'data' => null
+            ], 500);
+        }
+    }
+
+    public function getStudentAnswerStateData(Request $request, Quiz $quiz){
+
+        $question_attempt = QuizAttempt::where('quiz', $quiz->id)
+        ->where('userid', $request->user()->id)
+        ->first();
+        
+        $data = DB::connection('moodle_mysql')->table('mdl_question_usages AS quba')
+        ->leftJoin('mdl_question_attempts AS qa', 'qa.questionusageid', '=', 'quba.id')
+        ->leftJoin('mdl_question_attempt_steps AS qas', 'qas.questionattemptid', '=', 'qa.id')
+        ->leftJoin('mdl_question_attempt_step_data AS qasd', 'qasd.attemptstepid', '=', 'qas.id')
+        ->select(
+            'quba.id AS qubaid',
+            'quba.contextid',
+            'quba.component',
+            'quba.preferredbehaviour',
+            'qa.id AS questionattemptid',
+            'qa.questionusageid',
+            'qa.slot',
+            'qa.behaviour',
+            'qa.questionid',
+            'qa.variant',
+            'qa.maxmark',
+            'qa.minfraction',
+            'qa.maxfraction',
+            'qa.flagged',
+            'qa.questionsummary',
+            'qa.rightanswer',
+            'qa.responsesummary',
+            'qa.timemodified',
+            'qas.id AS attemptstepid',
+            'qas.sequencenumber',
+            'qas.state',
+            'qas.fraction',
+            'qas.timecreated',
+            'qas.userid',
+            'qasd.name',
+            'qasd.value'
+        )
+        ->where('quba.id', '=', $question_attempt->uniqueid)
+        ->orderBy('qa.slot')
+        ->orderBy('qas.sequencenumber')
+        ->get();
+        
+        return response()->json([
+            'message' => 'get student answer state data success',
+            'data' => $data
+        ]);
+    }
+
 
 }
