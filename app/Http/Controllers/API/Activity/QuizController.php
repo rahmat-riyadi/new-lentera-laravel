@@ -29,10 +29,12 @@ use App\Models\Quiz;
 use App\Models\QuizAttempt;
 use App\Models\QuizSection;
 use App\Models\QuizSlot;
+use App\Models\Role;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use stdClass;
 
 class QuizController extends Controller
 {
@@ -302,6 +304,159 @@ class QuizController extends Controller
                 'data' => null
             ], 500);
         }
+    }
+
+    public function getQuizDetail(Quiz $quiz){
+
+        $cm = CourseModule::where('instance', $quiz->id)
+        ->where('module', Module::where('name', 'quiz')->first()->id)
+        ->where('course', $quiz->course)
+        ->first();
+
+        $ctx = Context::where('instanceid', $cm->id)->where('contextlevel', 70)->first();
+
+        $role = Role::where('shortname', 'student')->first();
+
+        $students = DB::connection('moodle_mysql')->table('mdl_user as u')
+        ->select([
+            DB::raw("DISTINCT CONCAT(u.id, '#', COALESCE(quiza.attempt, 0)) AS uniqueid"),
+            DB::raw("(CASE 
+                WHEN (quiza.state = 'finished' AND NOT EXISTS (
+                    SELECT 1 
+                    FROM mdl_quiz_attempts qa2
+                    WHERE qa2.quiz = quiza.quiz 
+                      AND qa2.userid = quiza.userid 
+                      AND qa2.state = 'finished' 
+                      AND (
+                        COALESCE(qa2.sumgrades, 0) > COALESCE(quiza.sumgrades, 0) OR
+                        (COALESCE(qa2.sumgrades, 0) = COALESCE(quiza.sumgrades, 0) AND qa2.attempt < quiza.attempt)
+                      )
+                )) THEN 1 ELSE 0 
+            END) AS gradedattempt"),
+            'quiza.uniqueid as usageid',
+            'quiza.id as attempt',
+            'u.id as userid',
+            'u.idnumber',
+            'u.picture',
+            'u.imagealt',
+            'u.institution',
+            'u.department',
+            'u.email',
+            'u.username',
+            'u.firstnamephonetic',
+            'u.lastnamephonetic',
+            'u.middlename',
+            'u.alternatename',
+            'u.firstname',
+            'u.lastname',
+            'quiza.state',
+            'quiza.sumgrades',
+            'quiza.timefinish',
+            'quiza.timestart',
+            DB::raw("CASE 
+                WHEN quiza.timefinish = 0 THEN NULL
+                WHEN quiza.timefinish > quiza.timestart THEN quiza.timefinish - quiza.timestart
+                ELSE 0 
+            END AS duration"),
+            DB::raw("COALESCE((
+                SELECT MAX(qqr.regraded)
+                FROM mdl_quiz_overview_regrades qqr
+                WHERE qqr.questionusageid = quiza.uniqueid
+            ), -1) AS regraded")
+        ])
+        ->leftJoin('mdl_quiz_attempts as quiza', function ($join) use ($quiz) {
+            $join->on('quiza.userid', '=', 'u.id')
+                 ->where('quiza.quiz', '=', $quiz->id);
+        })
+        ->join('mdl_user_enrolments as ej1_ue', 'ej1_ue.userid', '=', 'u.id')
+        ->join('mdl_enrol as ej1_e', function ($join) use ($quiz) {
+            $join->on('ej1_e.id', '=', 'ej1_ue.enrolid')
+                 ->where('ej1_e.courseid', '=', $quiz->course);
+        })
+        ->joinSub(
+            DB::connection('moodle_mysql')->table('mdl_role_assignments')
+                ->select('userid')
+                ->distinct()
+                ->whereIn('contextid', explode("/", $ctx->path))
+                ->whereIn('roleid', [$role->id]),
+            'ra',
+            'ra.userid',
+            '=',
+            'u.id'
+        )
+        ->where('quiza.preview', '=', 0)
+        ->whereNotNull('quiza.id')
+        ->where('u.deleted', '=', 0)
+        ->where('u.id', '<>', 1)
+        ->orderBy('quiza.id', 'asc')
+        ->get();
+
+        $quis_slots = QuizSlot::where('quizid', $quiz->id)->pluck('slot')->toArray();
+
+        $answers = DB::connection('moodle_mysql')->table('mdl_question_attempts as qa')
+        ->select([
+            'qas.id',
+            'qa.id as questionattemptid',
+            'qa.questionusageid',
+            'qa.slot',
+            'qa.behaviour',
+            'qa.questionid',
+            'qa.variant',
+            'qa.maxmark',
+            'qa.minfraction',
+            'qa.maxfraction',
+            'qa.flagged',
+            'qa.questionsummary',
+            'qa.rightanswer',
+            'qa.responsesummary',
+            'qa.timemodified',
+            'qas.id as attemptstepid',
+            'qas.sequencenumber',
+            'qas.state',
+            'qas.fraction',
+            'qas.timecreated',
+            'qas.userid'
+        ])
+        ->join('mdl_question_attempt_steps as qas', function ($join) {
+            $join->on('qas.questionattemptid', '=', 'qa.id')
+                ->whereRaw('qas.sequencenumber = (SELECT MAX(sequencenumber) 
+                                                    FROM mdl_question_attempt_steps 
+                                                    WHERE questionattemptid = qa.id)');
+        })
+        ->whereIn('qa.questionusageid', $students->pluck('usageid')->toArray())
+        ->whereIn('qa.slot', $quis_slots)
+        ->get();
+
+
+        $formatted_students = $students->map(function($student) use ($answers) {
+            $answer = $answers->where('questionusageid', $student->usageid)->toArray();
+            return [
+                'name' => $student->firstname . ' ' . $student->lastname,
+                'email' => $student->email,
+                'username' => $student->username,
+                'grade' => $student->sumgrades,
+                'duration' => $student->duration,
+                'attempt' => $student->attempt,
+                'userid' => $student->userid,
+                'usageid' => $student->usageid,
+                'timestart' => Carbon::parse($student->timestart)->timezone('Asia/Makassar')->translatedFormat('H:i'),
+                'timefinish' => $student->timefinish == 0 ? "-" : Carbon::parse($student->timefinish)->timezone('Asia/Makassar')->translatedFormat('H:i'),
+                'answers' => $answer
+            ];
+        });
+
+        $instance = new stdClass();
+        $instance->name = $quiz->name;
+        $instance->description = $quiz->intro;
+        $instance->timeclose = $quiz->timeclose == 0 ? "-" : Carbon::parse($quiz->timeclose)->timezone('Asia/Makassar')->translatedFormat('d-m-Y H:i');
+        $instance->duration = ($quiz->timelimit / 60) . " Menit";
+        $instance->students = $formatted_students;
+
+        return response()->json([
+            'message' => 'Success',
+            'data' => $instance
+        ]);
+
     }
 
     public function getBankQuestion(Request $request, $shortname){
@@ -1394,10 +1549,7 @@ class QuizController extends Controller
 
         } catch (\Throwable $th) {
             DB::connection('moodle_mysql')->rollBack();
-            return response()->json([
-                'message' => $th->getMessage(),
-                'data' => null
-            ], 500);
+            throw $th;
         }
 
     }
@@ -1503,34 +1655,34 @@ class QuizController extends Controller
 
             foreach($request->questions as $question){
 
-                $questionState = $questionState->filter(fn($qs) => $qs->questionid == $question['question_id'])
+                $qs = $questionState->filter(fn($qs) => $qs->questionid == $question['question_id'])
                 ->where('name', 'answer')
                 ->sortByDesc('sequencenumber')
                 ->first();
 
-                if($questionState->behaviour == 'manualgraded'){
+                if($qs->behaviour == 'manualgraded'){
                     $state = 'needsgrading';
                 }
 
-                if($questionState->behaviour == 'deferredfeedback'){
+                if($qs->behaviour == 'deferredfeedback'){
 
-                    $optionsString = substr($questionState->questionsummary, strpos($questionState->questionsummary, ':') + 1);
-                    $options = array_map('trim', explode(';', $optionsString));
+                    $optionsString = substr($qs->questionsummary, strpos($qs->questionsummary, ':') + 1);
+                    $options = array_map('trim', explode(';', str_replace(["\r", "\n"], '', $optionsString)));
 
-                    $userAnswer = $options[$questionState->value - 1] ?? null; 
+                    $userAnswer = $options[$qs->value] ?? null; 
 
-                    if($userAnswer == $questionState->rightanswer){
-                        $state = 'gradedwrong';
-                    } else {
+                    if($userAnswer == str_replace(["\r", "\n"], '', $qs->rightanswer)){
                         $state = 'gradedright';
+                    } else {
+                        $state = 'gradedwrong';
                     }
 
                 }
 
                 $question_attempt_steps_id[] = DB::connection('moodle_mysql')->table('mdl_question_attempt_steps')
                 ->insertGetId([
-                    'questionattemptid' => $questionState->questionattemptid,
-                    'sequencenumber' => $questionState->sequencenumber + 1,
+                    'questionattemptid' => $qs->questionattemptid,
+                    'sequencenumber' => $qs->sequencenumber + 1,
                     'state' => $state,
                     'fraction' => $state == 'needsgrading' ? null : ($state == 'gradedright' ? 1 : 0),
                     'timecreated' => now()->timestamp,
@@ -1576,10 +1728,11 @@ class QuizController extends Controller
 
         } catch (\Throwable $th) {
             DB::connection('moodle_mysql')->rollBack();
-            return response()->json([
-                'message' => $th->getMessage(),
-                'data' => null
-            ], 500);
+            throw $th;
+            // return response()->json([
+            //     'message' => $th->getMessage(),
+            //     'data' => null
+            // ], 500);
         }
     }
 

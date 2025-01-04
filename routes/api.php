@@ -99,11 +99,13 @@ Route::middleware('auth.bearer')->group(function () {
 
     Route::group(['prefix' => 'quiz'], function(){
         Route::get('/{quiz}', [QuizController::class, 'findById']);
+        Route::get('/{quiz}/detail', [QuizController::class, 'getQuizDetail']);
 
         Route::group(['prefix' => '{quiz}/student'], function(){
             Route::get('/start-attempt', [QuizController::class, 'studentAttemptingQuiz']);
             Route::get('/attempt', [QuizController::class, 'getStudentAnswerStateData']);
             Route::post('/save-attempt', [QuizController::class, 'saveStudentState']);
+            Route::post('/finish-attempt', [QuizController::class, 'finishStudentAttempt']);
             // Route::post('/{quiz}', [QuizController::class, 'submitQuiz']);
         });
 
