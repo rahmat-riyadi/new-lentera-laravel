@@ -429,7 +429,8 @@ class QuizController extends Controller
 
 
         $formatted_students = $students->map(function($student) use ($answers) {
-            $answer = $answers->where('questionusageid', $student->usageid)->toArray();
+            $answer = $answers->where('questionusageid', $student->usageid)->values();
+            Log::info($answer);
             return [
                 'name' => $student->firstname . ' ' . $student->lastname,
                 'email' => $student->email,
@@ -451,6 +452,31 @@ class QuizController extends Controller
         $instance->timeclose = $quiz->timeclose == 0 ? "-" : Carbon::parse($quiz->timeclose)->timezone('Asia/Makassar')->translatedFormat('d-m-Y H:i');
         $instance->duration = ($quiz->timelimit / 60) . " Menit";
         $instance->students = $formatted_students;
+
+        return response()->json([
+            'message' => 'Success',
+            'data' => $instance
+        ]);
+
+    }
+
+    public function getQuizDetailForStudent(Quiz $quiz){
+
+        $cm = CourseModule::where('instance', $quiz->id)
+        ->where('module', Module::where('name', 'quiz')->first()->id)
+        ->where('course', $quiz->course)
+        ->first();
+
+        $ctx = Context::where('instanceid', $cm->id)->where('contextlevel', 70)->first();
+
+        $role = Role::where('shortname', 'student')->first();
+
+
+        $instance = new stdClass();
+        $instance->name = $quiz->name;
+        $instance->description = $quiz->intro;
+        $instance->timeclose = $quiz->timeclose == 0 ? "-" : Carbon::parse($quiz->timeclose)->timezone('Asia/Makassar')->translatedFormat('d-m-Y H:i');
+        $instance->duration = ($quiz->timelimit / 60) . " Menit";
 
         return response()->json([
             'message' => 'Success',
@@ -1538,6 +1564,11 @@ class QuizController extends Controller
             $quizInstance->questionsperpage = $quiz->questionsperpage;
             $quizInstance->current_attempt_id = $quizAttempt ? $quizAttempt->id : $newAttemptId;
             $quizInstance->question_usage_id = $questionUsage->id;
+            $currentTime = Carbon::now()->timestamp;
+            $quizEndTime = $quizAttempt->timestart + $quiz->timelimit;
+            $quizInstance->duration = $quiz->timelimit == 0 
+                ? 0 
+                : max(0, $quizEndTime - $currentTime);
 
             return response()->json([
                 'message' => 'Success',
@@ -1729,10 +1760,6 @@ class QuizController extends Controller
         } catch (\Throwable $th) {
             DB::connection('moodle_mysql')->rollBack();
             throw $th;
-            // return response()->json([
-            //     'message' => $th->getMessage(),
-            //     'data' => null
-            // ], 500);
         }
     }
 

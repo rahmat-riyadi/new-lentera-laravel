@@ -8,8 +8,10 @@ use App\Http\Controllers\API\Activity\QuizController;
 use App\Http\Controllers\API\Activity\UrlController;
 use App\Http\Controllers\API\AuthController;
 use App\Http\Controllers\API\CourseController;
+use App\Http\Controllers\API\DashboardController;
 use App\Http\Controllers\API\FileController;
 use App\Http\Controllers\API\ImageController;
+use App\Models\Quiz;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
@@ -32,7 +34,10 @@ Route::post('/login', [AuthController::class, 'login']);
 
 Route::middleware('auth.bearer')->group(function () {
 
+    Route::get('/dashboard', DashboardController::class, 'index');
+
     Route::group(['prefix' => 'course'], function(){
+
         Route::get('/', [CourseController::class, 'getAllCourse']);    
         Route::get('/can-import', [CourseController::class, 'getAllCanImportCourse']);
         
@@ -102,6 +107,7 @@ Route::middleware('auth.bearer')->group(function () {
         Route::get('/{quiz}/detail', [QuizController::class, 'getQuizDetail']);
 
         Route::group(['prefix' => '{quiz}/student'], function(){
+            Route::get('/detail', [QuizController::class, 'getQuizDetailForStudent']);
             Route::get('/start-attempt', [QuizController::class, 'studentAttemptingQuiz']);
             Route::get('/attempt', [QuizController::class, 'getStudentAnswerStateData']);
             Route::post('/save-attempt', [QuizController::class, 'saveStudentState']);
