@@ -4,6 +4,8 @@ namespace App\Http\Controllers\API\Activity;
 
 use App\Helpers\CourseHelper;
 use App\Helpers\GlobalHelper;
+use App\Helpers\GradeHelper;
+use App\Helpers\QuizGraderHelper;
 use App\Http\Controllers\Controller;
 use App\Models\Context;
 use App\Models\Course;
@@ -31,6 +33,7 @@ use App\Models\QuizSection;
 use App\Models\QuizSlot;
 use App\Models\Role;
 use Carbon\Carbon;
+use Carbon\CarbonInterface;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -38,6 +41,15 @@ use stdClass;
 
 class QuizController extends Controller
 {
+
+    protected $quizGraderHelper;
+    protected $gradeHelper;
+
+    public function __construct(QuizGraderHelper $quizGraderHelper, GradeHelper $gradeHelper)
+    {
+        $this->quizGraderHelper = $quizGraderHelper;
+        $this->gradeHelper = $gradeHelper;
+    }
 
     public function findById(Quiz $quiz){
         $instance = new \stdClass();
@@ -112,7 +124,7 @@ class QuizController extends Controller
                 'grade' => 10, // Skor maksimal
                 'attempts' => 0, // Upaya pengerjaan tidak terbatas
                 'grademethod' => 1, // Metode penilaian (1 = nilai tertinggi)
-                'questionsperpage' => 1, // Jumlah pertanyaan per halaman
+                'questionsperpage' => $request->questionperpage, // Jumlah pertanyaan per halaman
                 'navmethod' => 'free', // Metode navigasi bebas
                 'shuffleanswers' => 1, // Jawaban diacak
                 'preferredbehaviour' => 'deferredfeedback', // Perilaku umpan balik ditunda
@@ -391,58 +403,34 @@ class QuizController extends Controller
         ->orderBy('quiza.id', 'asc')
         ->get();
 
-        $quis_slots = QuizSlot::where('quizid', $quiz->id)->pluck('slot')->toArray();
+        $formatted_students = $students->map(function($student) use ($quiz) {
 
-        $answers = DB::connection('moodle_mysql')->table('mdl_question_attempts as qa')
-        ->select([
-            'qas.id',
-            'qa.id as questionattemptid',
-            'qa.questionusageid',
-            'qa.slot',
-            'qa.behaviour',
-            'qa.questionid',
-            'qa.variant',
-            'qa.maxmark',
-            'qa.minfraction',
-            'qa.maxfraction',
-            'qa.flagged',
-            'qa.questionsummary',
-            'qa.rightanswer',
-            'qa.responsesummary',
-            'qa.timemodified',
-            'qas.id as attemptstepid',
-            'qas.sequencenumber',
-            'qas.state',
-            'qas.fraction',
-            'qas.timecreated',
-            'qas.userid'
-        ])
-        ->join('mdl_question_attempt_steps as qas', function ($join) {
-            $join->on('qas.questionattemptid', '=', 'qa.id')
-                ->whereRaw('qas.sequencenumber = (SELECT MAX(sequencenumber) 
-                                                    FROM mdl_question_attempt_steps 
-                                                    WHERE questionattemptid = qa.id)');
-        })
-        ->whereIn('qa.questionusageid', $students->pluck('usageid')->toArray())
-        ->whereIn('qa.slot', $quis_slots)
-        ->get();
+            $quiz_grade = DB::connection('moodle_mysql')->table('mdl_quiz_grades')
+            ->where(
+                [
+                    'userid' => $student->userid,
+                    'quiz' => $quiz->id
+                ]
+            )->first();
+
+            if($quiz_grade) {
+                $final_grade = number_format($quiz_grade->grade * 10, 2, ',');
+            } else {
+                $final_grade = "Belum dinilai";
+            }
 
 
-        $formatted_students = $students->map(function($student) use ($answers) {
-            $answer = $answers->where('questionusageid', $student->usageid)->values();
-            Log::info($answer);
             return [
                 'name' => $student->firstname . ' ' . $student->lastname,
                 'email' => $student->email,
                 'username' => $student->username,
-                'grade' => $student->sumgrades,
+                'grade' => $final_grade,
                 'duration' => $student->duration,
                 'attempt' => $student->attempt,
                 'userid' => $student->userid,
                 'usageid' => $student->usageid,
                 'timestart' => Carbon::parse($student->timestart)->timezone('Asia/Makassar')->translatedFormat('H:i'),
                 'timefinish' => $student->timefinish == 0 ? "-" : Carbon::parse($student->timefinish)->timezone('Asia/Makassar')->translatedFormat('H:i'),
-                'answers' => $answer
             ];
         });
 
@@ -460,23 +448,141 @@ class QuizController extends Controller
 
     }
 
-    public function getQuizDetailForStudent(Quiz $quiz){
+    public function getStudentAnswer(Quiz $quiz, $usageid){
+
+        $questions = DB::connection('moodle_mysql')->table('mdl_question_attempts as qa')
+        ->joinSub(
+            DB::connection('moodle_mysql')->table('mdl_question_attempt_steps')
+                ->select('questionattemptid', DB::raw('MAX(sequencenumber) as max_seq'))
+                ->groupBy('questionattemptid'),
+            'latest',
+            'qa.id',
+            '=',
+            'latest.questionattemptid'
+        )
+        ->join(
+            'mdl_question_attempt_steps as qas',
+            function ($join) {
+                $join->on('qas.questionattemptid', '=', 'latest.questionattemptid')
+                    ->on('qas.sequencenumber', '=', 'latest.max_seq');
+            }
+        )
+        ->join('mdl_question as q', 'q.id', '=', 'qa.questionid')
+        ->where('qa.questionusageid', $usageid)
+        ->select('qa.*', 'qas.*',  'qas.id as attemptstepid','q.qtype as question_type')
+        ->get();
+
+        $quizAttempt = QuizAttempt::where('mdl_quiz_attempts.uniqueid', $usageid)
+        ->where('mdl_quiz_attempts.quiz', $quiz->id)
+        ->join('mdl_user as u', 'u.id', '=', 'mdl_quiz_attempts.userid')
+        ->select([
+            'mdl_quiz_attempts.*',
+            DB::raw("CONCAT(u.firstname, ' ', u.lastname) as fullname"),
+            'u.username as nim',
+            'u.id as studentid'
+        ])
+        ->first();
+
+        $timeStart = Carbon::parse($quizAttempt->timestart);
+        $timeFinish = Carbon::parse($quizAttempt->timefinish);
+
+        $quizAttempt->formatted_duration = $timeFinish->diffForHumans($timeStart, CarbonInterface::DIFF_ABSOLUTE);
+        $quizAttempt->formatted_date = $timeStart->translatedFormat('d F Y');
+
+        $quiz_grade = DB::connection('moodle_mysql')->table('mdl_quiz_grades')
+        ->where(
+            [
+                'userid' => $quizAttempt->userid,
+                'quiz' => $quiz->id
+            ]
+        )->first();
+
+        if($quiz_grade) {
+            $quizAttempt->grade = number_format($quiz_grade->grade * 10, 2, ',');
+        } else {
+            $quizAttempt->grade = 0;
+        }
+
+        foreach ($questions as $q) {
+            $q->formatted_question = explode("\r\n", $q->questionsummary)[0];
+            $q->formatted_rightanswer = str_replace(["\r", "\n"], '', $q->rightanswer);
+            $q->fraction = (float)$q->fraction;
+            if($q->question_type != 'essay'){
+                $optionsText = substr( $q->questionsummary, strpos( $q->questionsummary, "\r\n:") + 3);
+                $options = preg_split('/\n|;/', $optionsText);
+                $options = array_values(array_filter(array_map('trim', $options)));
+                $q->formatted_options = $options;
+            }
+
+            if($q->question_type == 'essay'){
+                $q->essay_answer = DB::connection('moodle_mysql')->table('mdl_question_attempt_steps as qas')
+                ->leftJoin('mdl_question_attempt_step_data as qasd', 'qasd.attemptstepid', '=', 'qas.id')
+                ->select('qasd.value')
+                ->where('qas.state', '=', 'complete')
+                ->where('qas.questionattemptid', '=', $q->questionattemptid)
+                ->where('qasd.name', '=', 'answer')
+                ->where('qas.sequencenumber', '=', function ($query) use ($q) {
+                    $query->selectRaw('MAX(sequencenumber)')
+                        ->from('mdl_question_attempt_steps')
+                        ->where('questionattemptid', '=', $q->questionattemptid)
+                        ->where('state', '=', 'complete');
+                })
+                ->first()->value;
+                $q->fraction_formatted = $q->fraction * 10;
+            }
+
+        }
+
+        return response()->json([
+            'message' => 'get student ansswerr success',
+            'data' => [
+                'student' => $quizAttempt,
+                'questions' => $questions
+            ]
+        ]);
+
+    }
+
+    public function getQuizDetailForStudent(Request $request, Quiz $quiz){
 
         $cm = CourseModule::where('instance', $quiz->id)
         ->where('module', Module::where('name', 'quiz')->first()->id)
         ->where('course', $quiz->course)
         ->first();
 
-        $ctx = Context::where('instanceid', $cm->id)->where('contextlevel', 70)->first();
-
-        $role = Role::where('shortname', 'student')->first();
-
-
         $instance = new stdClass();
         $instance->name = $quiz->name;
         $instance->description = $quiz->intro;
         $instance->timeclose = $quiz->timeclose == 0 ? "-" : Carbon::parse($quiz->timeclose)->timezone('Asia/Makassar')->translatedFormat('d-m-Y H:i');
         $instance->duration = ($quiz->timelimit / 60) . " Menit";
+
+        $quiz_attempt = QuizAttempt::where('quiz', $quiz->id)
+        ->where('userid', $request->user()->id)
+        ->first();
+
+        $instance->status = null;
+
+        if($quiz_attempt){
+            $timeStart = Carbon::parse($quiz_attempt->timestart);
+            $timeFinish = Carbon::parse($quiz_attempt->timefinish);
+            $instance->duration = $timeFinish->diffForHumans($timeStart, CarbonInterface::DIFF_ABSOLUTE);
+            $instance->status = $quiz_attempt->state;
+            
+            $quiz_grade = DB::connection('moodle_mysql')->table('mdl_quiz_grades')
+            ->where(
+                [
+                    'userid' => $request->user()->id,
+                    'quiz' => $quiz->id
+                ]
+            )->first();
+            
+            if($quiz_grade) {
+                $instance->grade = number_format($quiz_grade->grade * 10, 2, ',');
+            } else {
+                $instance->grade = "Belum dinilai";
+            }
+
+        }
 
         return response()->json([
             'message' => 'Success',
@@ -1642,6 +1748,8 @@ class QuizController extends Controller
 
     public function finishStudentAttempt(Request $request, Quiz $quiz){
 
+        $there_is_essay = false;
+
         try {
             DB::connection('moodle_mysql')->beginTransaction();
 
@@ -1693,6 +1801,7 @@ class QuizController extends Controller
 
                 if($qs->behaviour == 'manualgraded'){
                     $state = 'needsgrading';
+                    $there_is_essay = true;
                 }
 
                 if($qs->behaviour == 'deferredfeedback'){
@@ -1749,6 +1858,49 @@ class QuizController extends Controller
                 'timefinish' => now()->timestamp,
                 'timemodified' => now()->timestamp,
             ]);
+
+
+            if(!$there_is_essay){
+
+                $attemptSteps = DB::connection('moodle_mysql')
+                ->table('mdl_question_attempts as qa')
+                ->join('mdl_question_attempt_steps as qas', function($join) {
+                    $join->on('qas.questionattemptid', '=', 'qa.id')
+                        ->whereRaw('qas.sequencenumber = (
+                            SELECT MAX(sequencenumber) 
+                            FROM mdl_question_attempt_steps 
+                            WHERE questionattemptid = qa.id
+                        )');
+                })
+                ->where('qa.questionusageid', $request->quiz['question_usage_id'])
+                ->select([
+                    'qa.slot',
+                    'qa.maxmark',
+                    'qas.fraction',
+                ])
+                ->get();
+
+                $sumgrades = $attemptSteps->sum('fraction');
+
+                DB::connection('moodle_mysql')->table('mdl_quiz_attempts')
+                ->where('id', $request->quiz['current_attempt_id'])
+                ->update([
+                    'timemodified' => now()->timestamp,
+                    'sumgrades' => $sumgrades
+                ]);
+
+                $grade = $this->quizGraderHelper->calculateQuizGrade(
+                    $quiz->id,
+                    $request->quiz['question_usage_id']
+                );
+    
+                $this->quizGraderHelper->saveQuizGrade(
+                    $quiz->id,
+                    $request->user()->id,
+                    $grade['final_grade']
+                );
+            }
+
 
             DB::connection('moodle_mysql')->commit();
 
@@ -1810,6 +1962,165 @@ class QuizController extends Controller
             'message' => 'get student answer state data success',
             'data' => $data
         ]);
+    }
+
+    public function gradeEssay(Request $request, Quiz $quiz, $usageid){
+
+        DB::connection('moodle_mysql')->beginTransaction();
+
+        try {
+
+            foreach($request->questions ?? [] as $attemptid => $questionMark){
+
+                $questionAttemptStepSequence = QuestionAttemptStep::where('questionattemptid', $attemptid)
+                ->max('sequencenumber');   
+    
+                $newQuestionAttemptStepId =  DB::connection('moodle_mysql')->table('mdl_question_attempt_steps')
+                ->insertGetId([
+                    'questionattemptid' => $attemptid,
+                    'sequencenumber' => $questionAttemptStepSequence + 1,
+                    'state' => 'mangrright',
+                    'fraction' => $questionMark * 0.1,
+                    'timecreated' => now()->timestamp,
+                    'userid' => $request->user()->id,
+                ]);
+    
+                DB::connection('moodle_mysql')->table('mdl_question_attempt_step_data')
+                ->insert(
+                    [
+                        'attemptstepid' => $newQuestionAttemptStepId,
+                        'name' => '-comment',
+                        'value' => '',
+                    ],
+                    [
+                        'attemptstepid' => $newQuestionAttemptStepId,
+                        'name' => '-commentformat',
+                        'value' => '1',
+                    ],
+                    [
+                        'attemptstepid' => $newQuestionAttemptStepId,
+                        'name' => '-mark',
+                        'value' => $questionMark * 0.1 ,
+                    ],
+                    [
+                        'attemptstepid' => $newQuestionAttemptStepId,
+                        'name' => '-maxmark',
+                        'value' => 1,
+                    ],
+                );
+    
+            }
+
+            $essaysNotGraded = DB::connection('moodle_mysql')->table('mdl_question_attempts as qa')
+            ->join('mdl_question as q', 'q.id', '=', 'qa.questionid')
+            ->join('mdl_question_attempt_steps as qas', 'qas.questionattemptid', '=', 'qa.id')
+            ->where('q.qtype', 'essay') // Hanya untuk pertanyaan esai
+            ->where('qas.id', function ($query) {
+                $query->select(DB::raw('MAX(id)'))
+                    ->from('mdl_question_attempt_steps as sub_qas')
+                    ->whereColumn('sub_qas.questionattemptid', 'qa.id'); // Ambil langkah terakhir
+            })
+            ->where('qas.state', '!=', 'mangrright') // Langkah terakhir bukan status dinilai
+            ->where('qa.questionusageid', $usageid) // Ganti dengan ID penggunaan kuis
+            ->select([
+                'qa.id as question_attempt_id',
+                'qa.questionid',
+                'q.name as question_name',
+                'qa.maxmark',
+                'qas.sequencenumber',
+                'qas.state',
+            ])
+            ->exists();
+
+            if(!$essaysNotGraded){
+
+                $grade = $this->quizGraderHelper->calculateQuizGrade(
+                    $quiz->id,
+                    $usageid
+                );
+    
+                $this->quizGraderHelper->saveQuizGrade(
+                    $quiz->id,
+                    $request->userid,
+                    $grade['final_grade']
+                );
+
+                $attemptSteps = DB::connection('moodle_mysql')
+                ->table('mdl_question_attempts as qa')
+                ->join('mdl_question_attempt_steps as qas', function($join) {
+                    $join->on('qas.questionattemptid', '=', 'qa.id')
+                        ->whereRaw('qas.sequencenumber = (
+                            SELECT MAX(sequencenumber) 
+                            FROM mdl_question_attempt_steps 
+                            WHERE questionattemptid = qa.id
+                        )');
+                })
+                ->where('qa.questionusageid', $usageid)
+                ->select([
+                    'qa.slot',
+                    'qa.maxmark',
+                    'qas.fraction',
+                ])
+                ->get();
+
+                $sumgrades = $attemptSteps->sum('fraction');
+
+                DB::connection('moodle_mysql')->table('mdl_quiz_attempts')
+                ->where([
+                    'userid' => $request->userid,
+                    'quiz' => $quiz->id,
+                    'uniqueid' => $usageid
+                ])
+                ->update([
+                    'timemodified' => now()->timestamp,
+                    'sumgrades' => $sumgrades
+                ]);
+    
+                $gradeItem = DB::connection('moodle_mysql')->table('mdl_grade_items')
+                ->where('courseid', $quiz->course)
+                ->where('iteminstance', $quiz->id)
+                ->where('itemnumber', 0)
+                ->where('itemtype', 'mod')
+                ->where('itemmodule', 'quiz')
+                ->first();
+    
+                $this->gradeHelper->updateStudentGrade(
+                    $gradeItem->id,
+                    $request->userid,
+                    $grade['raw_grade'],
+                    $grade['final_grade'],
+                    $request->user()->id
+                );
+        
+                $gradeCategory = DB::connection('moodle_mysql')->table('mdl_grade_categories')
+                ->where('courseid', $quiz->course)
+                ->first();
+        
+                $calculableItems = $this->gradeHelper->getCalculableGradeItems(
+                    $quiz->course,
+                    $gradeCategory->id
+                );
+                
+                $this->gradeHelper->updateAggregationWeights(
+                    $quiz->course,
+                    $request->userid,
+                    $calculableItems->pluck('id')->toArray()
+                );
+            }
+
+
+            DB::connection('moodle_mysql')->commit();
+
+            return response()->json([
+                'message' => 'success grading essay'
+            ]);
+
+        } catch (\Throwable $th) {
+            DB::connection('moodle_mysql')->rollBack();
+            throw $th;
+        }
+
+
     }
 
 

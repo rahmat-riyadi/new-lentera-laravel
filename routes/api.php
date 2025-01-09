@@ -34,7 +34,7 @@ Route::post('/login', [AuthController::class, 'login']);
 
 Route::middleware('auth.bearer')->group(function () {
 
-    Route::get('/dashboard', DashboardController::class, 'index');
+    Route::get('/dashboard', [DashboardController::class, 'index']);
 
     Route::group(['prefix' => 'course'], function(){
 
@@ -107,6 +107,10 @@ Route::middleware('auth.bearer')->group(function () {
         Route::get('/{quiz}/detail', [QuizController::class, 'getQuizDetail']);
 
         Route::group(['prefix' => '{quiz}/student'], function(){
+
+            Route::get('/{usageid}/grading', [QuizController::class, 'getStudentAnswer']);
+            Route::post('/{usageid}/grading-essay', [QuizController::class, 'gradeEssay']);
+
             Route::get('/detail', [QuizController::class, 'getQuizDetailForStudent']);
             Route::get('/start-attempt', [QuizController::class, 'studentAttemptingQuiz']);
             Route::get('/attempt', [QuizController::class, 'getStudentAnswerStateData']);
