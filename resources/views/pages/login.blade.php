@@ -21,25 +21,31 @@ $submit = function (){
 
     $this->validate();
     
-    if(Auth::attempt(['username' => $this->username, 'password' => $this->password])){
+    $response = Http::get(env('MOODLE_URL').'/login/token.php', [
+        'username' => $this->username,
+        'password' => $this->password,
+        'service' => 'new-lentera-service',
+    ]);
 
-        $response = Http::get(env('MOODLE_URL').'/login/token.php', [
-            'username' => $this->username,
-            'password' => $this->password,
-            'service' => 'new-lentera-service',
-        ]);
-
-        Log::info($response);
-
-        if($response->ok()){
-            $this->dispatch('logged_in', $response->body());
-            return;
-        }
-
-        // return $this->redirect('/');
-    } 
     
-    $this->invalidate = true;
+
+    if(!$response->ok()){
+        $this->invalidate = true;
+    }
+
+    if(!empty($response->json()['error'])){
+        $this->invalidate = true;
+    }
+
+    $userid = DB::connection('moodle_mysql')->table('mdl_external_tokens')
+    ->where('token', $response->json()['token'])
+    ->first('userid');
+
+    $user = User::find($userid->userid);
+
+    Auth::login($user);
+
+    $this->redirect('/');
 
 }
 
