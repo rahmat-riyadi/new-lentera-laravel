@@ -36,6 +36,9 @@ class CourseController extends Controller
                         ->orWhere('ue.timeend', '>', $time);
             });
         })
+        ->select(
+            'mdl_course.*'
+        )
         ->get();
 
         $courses = $course;
@@ -46,7 +49,7 @@ class CourseController extends Controller
         return response()->json([
             'message' => 'Success',
             'data' => [
-                'courses' => $courses
+                'courses' => $courses->values()
             ]
         ], 200);
 

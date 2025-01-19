@@ -27,8 +27,6 @@ $submit = function (){
         'service' => 'new-lentera-service',
     ]);
 
-    
-
     if(!$response->ok()){
         $this->invalidate = true;
     }
