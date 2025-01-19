@@ -36,11 +36,6 @@ class CourseController extends Controller
                         ->orWhere('ue.timeend', '>', $time);
             });
         })
-        ->select(
-            'mdl_course.id',
-            'mdl_course.fullname',
-            'mdl_course.shortname',
-        )
         ->get();
 
         $courses = $course;
