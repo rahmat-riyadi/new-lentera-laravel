@@ -414,7 +414,7 @@ class QuizController extends Controller
             )->first();
 
             if($quiz_grade) {
-                $final_grade = number_format($quiz_grade->grade * 10, 2, ',');
+                $final_grade = number_format($quiz_grade->grade, 2, ',');
             } else {
                 $final_grade = "Belum dinilai";
             }
@@ -498,7 +498,7 @@ class QuizController extends Controller
         )->first();
 
         if($quiz_grade) {
-            $quizAttempt->grade = number_format($quiz_grade->grade * 10, 2, ',');
+            $quizAttempt->grade = number_format($quiz_grade->grade, 2, ',');
         } else {
             $quizAttempt->grade = 0;
         }
@@ -528,7 +528,7 @@ class QuizController extends Controller
                         ->where('state', '=', 'complete');
                 })
                 ->first()->value;
-                $q->fraction_formatted = $q->fraction * 10;
+                $q->fraction_formatted = $q->fraction;
             }
 
         }
@@ -577,7 +577,7 @@ class QuizController extends Controller
             )->first();
             
             if($quiz_grade) {
-                $instance->grade = number_format($quiz_grade->grade * 10, 2, ',');
+                $instance->grade = number_format($quiz_grade->grade, 2, ',');
             } else {
                 $instance->grade = "Belum dinilai";
             }
