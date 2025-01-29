@@ -604,6 +604,10 @@ class QuizController extends Controller
         ->orderBy('id', 'DESC')
         ->get();
 
+        if(!$categories){
+
+        }
+
         $res = DB::connection('moodle_mysql')->table('mdl_question as q')
             ->join('mdl_question_versions as qv', 'qv.questionid', '=', 'q.id')
             ->join('mdl_question_bank_entries as qbe', 'qbe.id', '=', 'qv.questionbankentryid')
@@ -613,7 +617,9 @@ class QuizController extends Controller
                 $subQuery->where('qv.status', 'ready')
                         ->orWhere('qv.status', 'draft');
             })
-            ->where('qbe.questioncategoryid', $categories[0]->id)
+            ->when(count($categories) > 0, function($q) use ($categories){
+                $q->where('qbe.questioncategoryid', $categories[0]->id);
+            })
             ->whereRaw('qv.version = (SELECT MAX(v.version)
                                         FROM mdl_question_versions v
                                         JOIN mdl_question_bank_entries be 
@@ -640,7 +646,7 @@ class QuizController extends Controller
 
         return response()->json([
             'message' => 'Success',
-            'data' => $res
+            'data' => $res ?? []
         ]);
 
     }

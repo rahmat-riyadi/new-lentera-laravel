@@ -43,7 +43,7 @@ class CourseController extends Controller
 
         $courses = $course;
         $courses = $courses->filter(function($e)  {
-            return !($e->startdate > time()) && !($e->enddate < time() && $e->enddate != 0);
+            return ($e->startdate < time()) && !($e->enddate < time() && $e->enddate != 0);
         });
 
         return response()->json([
@@ -204,7 +204,7 @@ class CourseController extends Controller
         ->where('mdl_user.id', '!=', $request->user()->id)
         ->select(
             'mdl_user.id',
-            DB::raw('CONCAT(mdl_user.firstname, " ", mdl_user.lastname) as fullname'),
+            DB::raw("mdl_user.firstname || ' ' || mdl_user.lastname as fullname"),
             'mdl_user.username',
             'mdl_user.email',
             'mdl_user.picture'

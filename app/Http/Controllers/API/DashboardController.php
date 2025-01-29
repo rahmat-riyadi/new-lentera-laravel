@@ -126,7 +126,7 @@ class DashboardController extends Controller
             'message' => 'get dashboard data success',
             'data' => [
                 'recent_course' => $recent_course,
-                'courses' => $courses,
+                'courses' => $courses->values(),
                 'dashboard_event' => $event
             ]
         ]);
@@ -282,8 +282,8 @@ class DashboardController extends Controller
             ->leftJoin('mdl_course as c', 'c.id', '=', 'e.courseid')
             ->leftJoin('mdl_course_modules as cm', function($join){
                 $join->on('cm.instance', '=', 'e.instance')
-                ->where('cm.module', '=', 'm.id')
-                ->where('cm.course', '=', 'c.id');
+                ->where('cm.module', '=', DB::raw("CAST(m.id as BIGINT)"))
+                ->where('cm.course', '=', DB::raw('CAST(c.id as BIGINT)'));
             })
             ->leftJoin('mdl_course_sections as cs', 'cs.id', '=', 'cm.section')
             ->where('e.visible', 1)
