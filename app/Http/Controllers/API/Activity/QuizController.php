@@ -606,10 +606,6 @@ class QuizController extends Controller
         ->orderBy('id', 'DESC')
         ->get();
 
-        if(!$categories){
-
-        }
-
         // $res = DB::connection('moodle_mysql')->table('mdl_question as q')
         //     ->join('mdl_question_versions as qv', 'qv.questionid', '=', 'q.id')
         //     ->join('mdl_question_bank_entries as qbe', 'qbe.id', '=', 'qv.questionbankentryid')
@@ -646,23 +642,24 @@ class QuizController extends Controller
         //     ])
         // ->paginate($perpage);
 
+        // ======================== OLD MOODLE VERSION // ========================
         $res = DB::connection('moodle_mysql')->table('mdl_question as q')
         ->join('mdl_question_categories as qc', 'qc.id', '=', 'q.category')
-        ->where('q.parent', 0) // 只获取父级题目
+        ->where('q.parent', 0) 
         ->when(count($categories) > 0, function ($q) use ($categories) {
-            $q->where('q.category', $categories[0]->id); // 根据第一个分类筛选题目
+            $q->where('q.category', $categories[0]->id);
         })
-        ->orderBy('q.qtype', 'asc') // 按题目类型排序
-        ->orderBy('q.name', 'asc') // 按题目名称排序
+        ->orderBy('q.qtype', 'asc')
+        ->orderBy('q.name', 'asc')
         ->select([
-            'q.id', // 题目ID
-            'q.qtype', // 题目类型
-            'q.name', // 题目名称
-            'qc.id as categoryid', // 分类ID
-            'qc.name as categoryname', // 分类名称
-            'q.createdby', // 创建者ID
-            'q.timecreated', // 创建时间
-            'q.timemodified', // 修改时间
+            'q.id', 
+            'q.qtype',
+            'q.name',
+            'qc.id as categoryid',
+            'qc.name as categoryname',
+            'q.createdby',
+            'q.timecreated',
+            'q.timemodified',
         ])
         ->paginate($perpage);
 
@@ -696,7 +693,7 @@ class QuizController extends Controller
         } 
 
         try {
-            //code...
+            
             $question = Question::create([
                 'parent' => 0,
                 'name' => $request->name,
@@ -711,19 +708,23 @@ class QuizController extends Controller
                 'createdby' => $request->user()->id,
                 'modifiedby' => $request->user()->id,
             ]);
+
+            // =============== USE IN NEW MOODLE VERSION =============== //
     
-            $qbe = QuestionBankEntry::create([
-                'questioncategoryid' => $categories[0]->id,
-                'idnumber' => null,
-                'ownerid' => $request->user()->id,
-            ]);
+            // $qbe = QuestionBankEntry::create([
+            //     'questioncategoryid' => $categories[0]->id,
+            //     'idnumber' => null,
+            //     'ownerid' => $request->user()->id,
+            // ]);
     
-            $qv = QuestionVersion::create([
-                'questionbankentryid' => $qbe->id,
-                'questionid' => $question->id,
-                'version' => 1,
-                'status' => 'ready',
-            ]);
+            // $qv = QuestionVersion::create([
+            //     'questionbankentryid' => $qbe->id,
+            //     'questionid' => $question->id,
+            //     'version' => 1,
+            //     'status' => 'ready',
+            // ]);
+
+            // =============== USE IN NEW MOODLE VERSION =============== //
     
             if($qtype == 'multichoice'){
                 $options = $request->questionConfig['options'];
