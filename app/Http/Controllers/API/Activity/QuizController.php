@@ -329,6 +329,8 @@ class QuizController extends Controller
 
         $role = Role::where('shortname', 'student')->first();
 
+        $path = array_filter(explode("/", $ctx->path), fn($value) => $value !== '');
+
         $students = DB::connection('moodle_mysql')->table('mdl_user as u')
         ->select([
             DB::raw("DISTINCT CONCAT(u.id, '#', COALESCE(quiza.attempt, 0)) AS uniqueid"),
@@ -389,7 +391,7 @@ class QuizController extends Controller
             DB::connection('moodle_mysql')->table('mdl_role_assignments')
                 ->select('userid')
                 ->distinct()
-                ->whereIn('contextid', explode("/", $ctx->path))
+            ->whereIn('contextid', $path)
                 ->whereIn('roleid', [$role->id]),
             'ra',
             'ra.userid',
@@ -414,7 +416,7 @@ class QuizController extends Controller
             )->first();
 
             if($quiz_grade) {
-                $final_grade = number_format($quiz_grade->grade * 10, 2, ',');
+                $final_grade = number_format($quiz_grade->grade, 2, ',');
             } else {
                 $final_grade = "Belum dinilai";
             }
@@ -498,7 +500,7 @@ class QuizController extends Controller
         )->first();
 
         if($quiz_grade) {
-            $quizAttempt->grade = number_format($quiz_grade->grade * 10, 2, ',');
+            $quizAttempt->grade = number_format($quiz_grade->grade, 2, ',');
         } else {
             $quizAttempt->grade = 0;
         }
@@ -528,7 +530,7 @@ class QuizController extends Controller
                         ->where('state', '=', 'complete');
                 })
                 ->first()->value;
-                $q->fraction_formatted = $q->fraction * 10;
+                $q->fraction_formatted = $q->fraction;
             }
 
         }
@@ -577,7 +579,7 @@ class QuizController extends Controller
             )->first();
             
             if($quiz_grade) {
-                $instance->grade = number_format($quiz_grade->grade * 10, 2, ',');
+                $instance->grade = number_format($quiz_grade->grade, 2, ',');
             } else {
                 $instance->grade = "Belum dinilai";
             }
@@ -604,6 +606,10 @@ class QuizController extends Controller
         ->orderBy('id', 'DESC')
         ->get();
 
+        if(!$categories){
+
+        }
+
         $res = DB::connection('moodle_mysql')->table('mdl_question as q')
             ->join('mdl_question_versions as qv', 'qv.questionid', '=', 'q.id')
             ->join('mdl_question_bank_entries as qbe', 'qbe.id', '=', 'qv.questionbankentryid')
@@ -613,7 +619,9 @@ class QuizController extends Controller
                 $subQuery->where('qv.status', 'ready')
                         ->orWhere('qv.status', 'draft');
             })
-            ->where('qbe.questioncategoryid', $categories[0]->id)
+            ->when(count($categories) > 0, function($q) use ($categories){
+                $q->where('qbe.questioncategoryid', $categories[0]->id);
+            })
             ->whereRaw('qv.version = (SELECT MAX(v.version)
                                         FROM mdl_question_versions v
                                         JOIN mdl_question_bank_entries be 
@@ -640,7 +648,7 @@ class QuizController extends Controller
 
         return response()->json([
             'message' => 'Success',
-            'data' => $res
+            'data' => $res ?? []
         ]);
 
     }

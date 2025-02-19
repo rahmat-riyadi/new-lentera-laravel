@@ -166,6 +166,8 @@ class AssignmentController extends Controller
                     $submit_time = '-';
                 }
 
+                $grade = 0;
+
                 if(is_null($e->timemodified) || $e->status == 'new'){
                     $status = 'Belum Dikumpulkan';
                 } else {
@@ -176,6 +178,11 @@ class AssignmentController extends Controller
                     } else {
                         $status = 'Dikumpulkan';
                     }
+                    $grade = AssignGrade::where([
+                        'assignment' => $assignment->id,
+                        'userid' => $e->id
+                    ])->first()->grade;
+                    $grade = number_format($grade, 2, ',');
                 }
 
                 return [
@@ -184,6 +191,7 @@ class AssignmentController extends Controller
                     'fullname' => $e->fullname,
                     'nim' => $e->nim,
                     'status' => $status,
+                    'grade' => $grade,
                     'submit_time' => $submit_time
                 ];
             });
@@ -856,11 +864,15 @@ class AssignmentController extends Controller
                 'nim' => $user->username,
             ],
             'assignment' => [
+                'id' => $assignment->id,
+                'course' => $assignment->course,
+                'submission_id' => $assignmentSubmission->id,
                 'name' => $assignment->name,
                 'type' => $type,
                 'files' => $files,
-                'grade' => $grade,
+                'grade' => number_format($grade, 2),
                 'status' => $status,
+                'created_at' => empty($assignmentSubmission) ? null : Carbon::parse($assignmentSubmission->created_at)->setTimezone('Asia/Makassar')->translatedFormat('H:i')
             ]
         ];
 
@@ -909,6 +921,62 @@ class AssignmentController extends Controller
             ], 500);
         }
         
+    }
+
+    public function storeGrade(Request $request)
+    {
+        DB::beginTransaction();
+
+        try {
+
+            $assignGrade = AssignGrade::updateOrCreate(
+                [
+                    'assignment' => $request['assignment_id'],
+                    'userid' => $request['student_id'],
+                ],
+                [
+                    'timemodified' => time(),
+                    'grade' => $request['grade'],
+                    'grader' => auth()->user()->id,
+                    'timecreated' => time(),
+                ]
+            );
+
+            $gradeItem = GradeItem::where('iteminstance', $request['assignment_id'])
+                ->where('itemmodule', 'assign')
+                ->where('courseid', $request['course_id'])
+                ->first();
+
+            if (!$gradeItem) {
+                return response()->json([
+                    'message' => 'Item penilaian tidak ditemukan.',
+                ], 404);
+            }
+
+            $gradeGrades = GradeGrades::where('itemid', $gradeItem->id)
+                ->where('userid', $request['student_id'])
+                ->update([
+                    'rawgrade' => $request['grade'],
+                    'finalgrade' => $request['grade'],
+                    'usermodified' => auth()->user()->id,
+                    'timemodified' => time(),
+                ]);
+
+            DB::commit();
+
+            return response()->json([
+                'message' => 'Penilaian berhasil disimpan',
+                'data' => null,
+            ], 200);
+
+        } catch (\Throwable $th) {
+            DB::rollBack();
+            Log::info($th->getMessage());
+            return response()->json([
+                'message' => 'Terjadi kesalahan saat menyimpan penilaian',
+                'error' => $th->getMessage(),
+            ], 500);
+        }
     }
 
 }

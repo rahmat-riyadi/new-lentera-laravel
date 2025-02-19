@@ -20,6 +20,7 @@ class AuthController extends Controller
             'username' => $request->username,
             'password' => $request->password,
             'service' => 'new-lentera-service',
+            'moodlewsrestformat' => 'json'
         ]);
 
         if(!$response->ok()){
@@ -29,28 +30,34 @@ class AuthController extends Controller
             ], 500);
         }
 
-        if(!empty($response->json()['error'])){
-            return response()->json([
-                'message' => 'Unauthorized',
-                'data' => 'Username atau Password salah'
-            ], 401);
+        $auth_res = [];
+
+        preg_match('/{.*}/', $response->body(), $matches);
+        if (!empty($matches[0])) {
+            $data = json_decode($matches[0], true);
+            $auth_res = [
+                'status' => isset($data['error']) ? 'error' : 'success',
+                'message' => $data['error'] ?? 'Login successful',
+                'data' => $data,
+                'code' => isset($data['error']) ? 401 : 200
+            ];
         }
 
-        $userid = DB::connection('moodle_mysql')->table('mdl_external_tokens')
-        ->where('token', $response->json()['token'])
-        ->first('userid');
+        if($auth_res['status'] == 'error'){
+            return response()->json($auth_res);
+        }
 
-        $user = User::find($userid->userid);
+        $user = User::firstWhere('username',$request->username);
 
         Auth::login($user);
 
         $course = Course::
-        whereIn('mdl_course.id', function($q) use ($request){
+        whereIn('mdl_course.id', function($q) use ($user){
             $q->select('e.courseid')
             ->from('mdl_enrol as e')
-            ->join('mdl_user_enrolments as ue', function ($join) use ($request) {
+            ->join('mdl_user_enrolments as ue', function ($join) use ($user) {
                 $join->on('ue.enrolid', '=', 'e.id')
-                    ->where('ue.userid', '=', $request->user()->id);
+                    ->where('ue.userid', '=', $user->id);
             })
             ->join('mdl_course as c', 'c.id', '=', 'e.courseid')
             ->where('ue.status', '=', '0')
@@ -60,6 +67,8 @@ class AuthController extends Controller
             'mdl_course.id',
         )
         ->first();
+
+        Log::info($course);
 
         $ctx = Context::where('contextlevel', 50)->where('instanceid', $course->id)->first();
         $data = DB::connection('moodle_mysql')->table('mdl_role_assignments as ra')
@@ -75,10 +84,11 @@ class AuthController extends Controller
         $token = auth()->user()->createToken('authToken')->plainTextToken;
 
         return response()->json([
+            'status' => 'success',
             'token' => $token,
             'name' => auth()->user()->firstname . ' ' . auth()->user()->lastname,
             'nim' => auth()->user()->username,
-            'wstoken' => $response->json()['token'],
+            'wstoken' => $auth_res['data']['token'],
             'role' => $data->role,
         ], 200);
 

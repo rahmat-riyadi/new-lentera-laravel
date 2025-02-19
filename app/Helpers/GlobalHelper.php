@@ -24,4 +24,8 @@ class GlobalHelper {
         return sha1("/$contextid/$component/$filearea/$itemid".$filepath.$filename);
     }
 
+    public static function path_fixed($separator,$path){
+        return array_filter(explode($separator, $path), fn($value) => $value !== '');
+    }
+
 }

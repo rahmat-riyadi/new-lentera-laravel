@@ -7,6 +7,7 @@ use App\Models\CourseCategory;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 
 class DashboardController extends Controller
@@ -76,6 +77,16 @@ class DashboardController extends Controller
         ->limit(2)
         ->get();
 
+        $recent_res = Http::get(env('MOODLE_URL').'/webservice/rest/server.php',[
+            'wstoken' => $request->query('wstoken'),
+            'moodlewsrestformat' => 'json',
+            'wsfunction' => 'core_course_get_recent_courses'
+        ]);
+
+        $recent = collect($recent_res->json())->all();
+
+        Log::info($recent);
+
         $categories = CourseCategory::whereIn('id', $recent_course->pluck('category'))->get();
         $completionRate = DB::connection('moodle_mysql')->table('mdl_course as c')
         ->select([
@@ -126,7 +137,7 @@ class DashboardController extends Controller
             'message' => 'get dashboard data success',
             'data' => [
                 'recent_course' => $recent_course,
-                'courses' => $courses,
+                'courses' => $courses->values(),
                 'dashboard_event' => $event
             ]
         ]);
@@ -282,8 +293,8 @@ class DashboardController extends Controller
             ->leftJoin('mdl_course as c', 'c.id', '=', 'e.courseid')
             ->leftJoin('mdl_course_modules as cm', function($join){
                 $join->on('cm.instance', '=', 'e.instance')
-                ->where('cm.module', '=', 'm.id')
-                ->where('cm.course', '=', 'c.id');
+                ->where('cm.module', '=', DB::raw("CAST(m.id as BIGINT)"))
+                ->where('cm.course', '=', DB::raw('CAST(c.id as BIGINT)'));
             })
             ->leftJoin('mdl_course_sections as cs', 'cs.id', '=', 'cm.section')
             ->where('e.visible', 1)

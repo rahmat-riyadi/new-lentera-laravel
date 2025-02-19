@@ -26,7 +26,7 @@ class UrlController extends Controller
         $module = Module::where('name', 'url')->first();
         $course = Course::where('shortname', $shortname)->first();
 
-        DB::beginTransaction();
+        DB::connection('moodle_mysql')->beginTransaction();
 
         try {
             $instance = $course->url()->create([
@@ -37,7 +37,7 @@ class UrlController extends Controller
             $cm = CourseHelper::addCourseModule($course->id, $module->id, $instance->id);
             CourseHelper::addContext($cm->id, $course->id);
             CourseHelper::addCourseModuleToSection($course->id, $cm->id, $request->section);
-            DB::commit();
+            DB::connection('moodle_mysql')->commit();
             GlobalHelper::rebuildCourseCache($course->id);
 
             return response()->json([
@@ -45,7 +45,7 @@ class UrlController extends Controller
             ], 200);
 
         } catch (\Throwable $th) {
-            DB::rollBack();
+            DB::connection('moodle_mysql')->rollBack();
             return response()->json([
                 'message' => $th->getMessage()
             ], 500);
