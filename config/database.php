@@ -63,7 +63,7 @@ return [
             ]) : [],
         ],
 
-        'moodle_mysql' => [
+        'moodle_mysql_old' => [
             'driver' => 'mysql',
             'url' => env('DATABASE_URL'),
             'host' => env('DB_HOST', '127.0.0.1'),
@@ -81,6 +81,21 @@ return [
             'options' => extension_loaded('pdo_mysql') ? array_filter([
                 PDO::MYSQL_ATTR_SSL_CA => env('MYSQL_ATTR_SSL_CA'),
             ]) : [],
+        ],
+
+        'moodle_mysql' => [
+            'driver' => 'pgsql',
+            'url' => env('DATABASE_URL'),
+            'host' => env('DB_HOST', '127.0.0.1'),
+            'port' => env('MOODLE_DB_PORT', '5432'),
+            'database' => env('MOODLE_DB_DATABASE', 'forge'),
+            'username' => env('MOODLE_DB_USERNAME', 'forge'),
+            'password' => env('MOODLE_DB_PASSWORD', ''),
+            'charset' => 'utf8',
+            'prefix' => '',
+            'prefix_indexes' => true,
+            'search_path' => 'public',
+            'sslmode' => 'prefer',
         ],
 
         'pgsql' => [
