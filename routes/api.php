@@ -45,6 +45,7 @@ Route::middleware('auth.bearer')->group(function () {
             Route::get('/', [CourseController::class, 'getTopic']);    
             Route::get('/participants', [CourseController::class, 'getParticipants']);
 
+            Route::get('/grade', [CourseController::class, 'getGrades']);
             Route::get('/section', [CourseController::class, 'addTopic']);
 
             Route::post('/import', [CourseController::class, 'importCourse']);
@@ -92,6 +93,7 @@ Route::middleware('auth.bearer')->group(function () {
     Route::group(['prefix' => 'assignment'], function(){
         Route::get('/{assignment}', [AssignmentController::class, 'findById']);
         Route::get('/grade/{assignmentSubmission}', [AssignmentController::class, 'getDetailGrading']);
+        Route::post('/grade/{assignmentSubmission}', [AssignmentController::class, 'storeGrade']);
         Route::put('/{assignment}', [AssignmentController::class, 'update']);
 
         Route::group(['prefix' => 'student'], function(){

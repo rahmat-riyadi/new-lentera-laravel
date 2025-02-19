@@ -67,7 +67,7 @@ return [
             'driver' => 'pgsql',
             'url' => env('DATABASE_URL'),
             'host' => env('DB_HOST', '127.0.0.1'),
-            'port' => env('MOODLE_DB_PORT', '3306'),
+            'port' => env('MOODLE_DB_PORT', '5432'),
             'database' => env('MOODLE_DB_DATABASE', 'forge'),
             'username' => env('MOODLE_DB_USERNAME', 'forge'),
             'password' => env('MOODLE_DB_PASSWORD', ''),

@@ -329,6 +329,8 @@ class QuizController extends Controller
 
         $role = Role::where('shortname', 'student')->first();
 
+        $path = array_filter(explode("/", $ctx->path), fn($value) => $value !== '');
+
         $students = DB::connection('moodle_mysql')->table('mdl_user as u')
         ->select([
             DB::raw("DISTINCT CONCAT(u.id, '#', COALESCE(quiza.attempt, 0)) AS uniqueid"),
@@ -389,7 +391,7 @@ class QuizController extends Controller
             DB::connection('moodle_mysql')->table('mdl_role_assignments')
                 ->select('userid')
                 ->distinct()
-                ->whereIn('contextid', explode("/", $ctx->path))
+            ->whereIn('contextid', $path)
                 ->whereIn('roleid', [$role->id]),
             'ra',
             'ra.userid',

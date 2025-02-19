@@ -7,6 +7,7 @@ use App\Models\CourseCategory;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 
 class DashboardController extends Controller
@@ -75,6 +76,16 @@ class DashboardController extends Controller
         ->orderBy('timeaccess', 'desc')
         ->limit(2)
         ->get();
+
+        $recent_res = Http::get(env('MOODLE_URL').'/webservice/rest/server.php',[
+            'wstoken' => $request->query('wstoken'),
+            'moodlewsrestformat' => 'json',
+            'wsfunction' => 'core_course_get_recent_courses'
+        ]);
+
+        $recent = collect($recent_res->json())->all();
+
+        Log::info($recent);
 
         $categories = CourseCategory::whereIn('id', $recent_course->pluck('category'))->get();
         $completionRate = DB::connection('moodle_mysql')->table('mdl_course as c')

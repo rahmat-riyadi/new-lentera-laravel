@@ -24,7 +24,7 @@ class ActivityController extends Controller
                     $mod_table = 'url';
                     break;
                 case 'resource':
-                    $mod_table = 'resource';
+                    $mod_table = 'mdl_resource';
                     break;
                 case 'attendances':
                     $mod_table = 'attendances';

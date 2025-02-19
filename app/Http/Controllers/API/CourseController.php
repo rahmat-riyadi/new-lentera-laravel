@@ -94,7 +94,7 @@ class CourseController extends Controller
     
             if(!empty($cs->sequence)){
     
-                $cmids = explode(',', $cs->sequence);
+                $cmids = array_filter(explode(',', $cs->sequence), fn($value) => $value !== '');
     
                 $courseModules = CourseModule::whereIn('id', $cmids)
                 ->where('deletioninprogress', 0)
@@ -202,6 +202,7 @@ class CourseController extends Controller
         ->where('mdl_enrol.courseid', $course->id)
         ->where('mdl_user_enrolments.status', 0)
         ->where('mdl_user.id', '!=', $request->user()->id)
+        ->where('mdl_user.username', '!=','admin')
         ->select(
             'mdl_user.id',
             DB::raw("mdl_user.firstname || ' ' || mdl_user.lastname as fullname"),
@@ -296,6 +297,25 @@ class CourseController extends Controller
         return response()->json([
             'message' => 'Success'
         ], 200);
+
+    }
+
+    public function getGrades(Request $request, $shortname){
+        $course = Course::where('shortname', $shortname)->first();
+        Log::info($course);
+        $grade_res = Http::withQueryParameters([
+            'wstoken' => $request->query('wstoken'),
+            'moodlewsrestformat' => 'json',
+            'wsfunction' => 'gradereport_user_get_grade_items'
+        ])->asForm()->post(env('MOODLE_URL').'/webservice/rest/server.php',[
+            'courseid' => $course->id
+        ]);
+
+        Log::info($grade_res->body());
+
+        return response()->json([
+            'data' => $grade_res->json()
+        ]);
 
     }
 

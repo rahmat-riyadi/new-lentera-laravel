@@ -490,7 +490,7 @@ class AttendanceController extends Controller
         $roleAssignmentsQuery = DB::connection('moodle_mysql')->table('mdl_role_assignments')
         ->select('userid')
         ->distinct()
-        ->whereIn('contextid', explode('/', $ctx->path))
+        ->whereIn('contextid', GlobalHelper::path_fixed("/",$ctx->path))
         ->whereIn('roleid', [$role->id]);
 
         $subQuery = DB::connection('moodle_mysql')->table('mdl_user as eu1_u')
