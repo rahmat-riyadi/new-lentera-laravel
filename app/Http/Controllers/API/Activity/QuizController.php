@@ -610,40 +610,60 @@ class QuizController extends Controller
 
         }
 
+        // $res = DB::connection('moodle_mysql')->table('mdl_question as q')
+        //     ->join('mdl_question_versions as qv', 'qv.questionid', '=', 'q.id')
+        //     ->join('mdl_question_bank_entries as qbe', 'qbe.id', '=', 'qv.questionbankentryid')
+        //     ->join('mdl_question_categories as qc', 'qc.id', '=', 'qbe.questioncategoryid')
+        //     ->where('q.parent', 0)
+        //     ->where(function ($subQuery) {
+        //         $subQuery->where('qv.status', 'ready')
+        //                 ->orWhere('qv.status', 'draft');
+        //     })
+        //     ->when(count($categories) > 0, function($q) use ($categories){
+        //         $q->where('qbe.questioncategoryid', $categories[0]->id);
+        //     })
+        //     ->whereRaw('qv.version = (SELECT MAX(v.version)
+        //                                 FROM mdl_question_versions v
+        //                                 JOIN mdl_question_bank_entries be 
+        //                                 ON be.id = v.questionbankentryid
+        //                                 WHERE be.id = qbe.id)')
+        //     ->orderBy('q.qtype', 'asc')
+        //     ->orderBy('q.name', 'asc')
+        //     ->select([
+        //         'qv.status',
+        //         'qc.id as categoryid',
+        //         'qv.version',
+        //         'qv.id as versionid',
+        //         'qbe.id as questionbankentryid',
+        //         'q.id',
+        //         'q.qtype',
+        //         'q.name',
+        //         'qbe.idnumber',
+        //         'q.createdby',
+        //         'qc.contextid',
+        //         'q.timecreated',
+        //         'q.timemodified',
+        //     ])
+        // ->paginate($perpage);
+
         $res = DB::connection('moodle_mysql')->table('mdl_question as q')
-            ->join('mdl_question_versions as qv', 'qv.questionid', '=', 'q.id')
-            ->join('mdl_question_bank_entries as qbe', 'qbe.id', '=', 'qv.questionbankentryid')
-            ->join('mdl_question_categories as qc', 'qc.id', '=', 'qbe.questioncategoryid')
-            ->where('q.parent', 0)
-            ->where(function ($subQuery) {
-                $subQuery->where('qv.status', 'ready')
-                        ->orWhere('qv.status', 'draft');
-            })
-            ->when(count($categories) > 0, function($q) use ($categories){
-                $q->where('qbe.questioncategoryid', $categories[0]->id);
-            })
-            ->whereRaw('qv.version = (SELECT MAX(v.version)
-                                        FROM mdl_question_versions v
-                                        JOIN mdl_question_bank_entries be 
-                                        ON be.id = v.questionbankentryid
-                                        WHERE be.id = qbe.id)')
-            ->orderBy('q.qtype', 'asc')
-            ->orderBy('q.name', 'asc')
-            ->select([
-                'qv.status',
-                'qc.id as categoryid',
-                'qv.version',
-                'qv.id as versionid',
-                'qbe.id as questionbankentryid',
-                'q.id',
-                'q.qtype',
-                'q.name',
-                'qbe.idnumber',
-                'q.createdby',
-                'qc.contextid',
-                'q.timecreated',
-                'q.timemodified',
-            ])
+        ->join('mdl_question_categories as qc', 'qc.id', '=', 'q.category')
+        ->where('q.parent', 0) // 只获取父级题目
+        ->when(count($categories) > 0, function ($q) use ($categories) {
+            $q->where('q.category', $categories[0]->id); // 根据第一个分类筛选题目
+        })
+        ->orderBy('q.qtype', 'asc') // 按题目类型排序
+        ->orderBy('q.name', 'asc') // 按题目名称排序
+        ->select([
+            'q.id', // 题目ID
+            'q.qtype', // 题目类型
+            'q.name', // 题目名称
+            'qc.id as categoryid', // 分类ID
+            'qc.name as categoryname', // 分类名称
+            'q.createdby', // 创建者ID
+            'q.timecreated', // 创建时间
+            'q.timemodified', // 修改时间
+        ])
         ->paginate($perpage);
 
         return response()->json([
