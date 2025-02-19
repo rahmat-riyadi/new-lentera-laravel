@@ -87,7 +87,7 @@ class DashboardController extends Controller
 
         Log::info($recent);
 
-        $categories = CourseCategory::whereIn('id', $recent_course->pluck('category'))->get();
+        $categories = CourseCategory::all();
         $completionRate = DB::connection('moodle_mysql')->table('mdl_course as c')
         ->select([
             'c.id as courseid',
