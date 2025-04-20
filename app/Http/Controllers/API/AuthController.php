@@ -16,36 +16,36 @@ class AuthController extends Controller
 {
     public function login(Request $request){
 
-        $response = Http::get(env('MOODLE_URL').'/login/token.php', [
-            'username' => $request->username,
-            'password' => $request->password,
-            'service' => 'lms-service',
-            'moodlewsrestformat' => 'json'
-        ]);
+        // $response = Http::get(env('MOODLE_URL').'/login/token.php', [
+        //     'username' => $request->username,
+        //     'password' => $request->password,
+        //     'service' => 'lms-service',
+        //     'moodlewsrestformat' => 'json'
+        // ]);
 
-        if(!$response->ok()){
-            return response()->json([
-                'message' => 'internal server error',
-                'data' => $response->body()
-            ], 500);
-        }
+        // if(!$response->ok()){
+        //     return response()->json([
+        //         'message' => 'internal server error',
+        //         'data' => $response->body()
+        //     ], 500);
+        // }
 
-        $auth_res = [];
+        // $auth_res = [];
 
-        preg_match('/{.*}/', $response->body(), $matches);
-        if (!empty($matches[0])) {
-            $data = json_decode($matches[0], true);
-            $auth_res = [
-                'status' => isset($data['error']) ? 'error' : 'success',
-                'message' => $data['error'] ?? 'Login successful',
-                'data' => $data,
-                'code' => isset($data['error']) ? 401 : 200
-            ];
-        }
+        // preg_match('/{.*}/', $response->body(), $matches);
+        // if (!empty($matches[0])) {
+        //     $data = json_decode($matches[0], true);
+        //     $auth_res = [
+        //         'status' => isset($data['error']) ? 'error' : 'success',
+        //         'message' => $data['error'] ?? 'Login successful',
+        //         'data' => $data,
+        //         'code' => isset($data['error']) ? 401 : 200
+        //     ];
+        // }
 
-        if($auth_res['status'] == 'error'){
-            return response()->json($auth_res);
-        }
+        // if($auth_res['status'] == 'error'){
+        //     return response()->json($auth_res);
+        // }
 
         $user = User::firstWhere('username',$request->username);
 
@@ -88,7 +88,7 @@ class AuthController extends Controller
             'token' => $token,
             'name' => auth()->user()->firstname . ' ' . auth()->user()->lastname,
             'nim' => auth()->user()->username,
-            'wstoken' => $auth_res['data']['token'],
+            // 'wstoken' => $auth_res['data']['token'],
             'role' => $data->role,
         ], 200);
 
