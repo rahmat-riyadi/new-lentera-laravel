@@ -19,7 +19,7 @@ class AuthController extends Controller
         $response = Http::get(env('MOODLE_URL').'/login/token.php', [
             'username' => $request->username,
             'password' => $request->password,
-            'service' => 'new-lentera-service',
+            'service' => 'lms-service',
             'moodlewsrestformat' => 'json'
         ]);
 
