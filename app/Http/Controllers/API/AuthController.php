@@ -26,7 +26,7 @@ class AuthController extends Controller
         if(!$response->ok()){
             return response()->json([
                 'message' => 'internal server error',
-                'data' => null
+                'data' => $response->body()
             ], 500);
         }
 
